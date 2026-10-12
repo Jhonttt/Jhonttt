@@ -1,12 +1,6 @@
 <div align="center">
 
-<a href="https://juanatahona.dev">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="assets/banner-dark.svg">
-    <source media="(prefers-color-scheme: light)" srcset="assets/banner-light.svg">
-    <img src="assets/banner-light.svg" width="960" alt="Juan Atahona — Desarrollador fullstack en España">
-  </picture>
-</a>
+<a href="https://juanatahona.dev"><picture><source media="(prefers-color-scheme: dark)" srcset="assets/banner-dark.svg"><source media="(prefers-color-scheme: light)" srcset="assets/banner-light.svg"><img src="assets/banner-light.svg" width="960" alt="Juan Atahona — Desarrollador fullstack en España"></picture></a>
 
 <br><br>
 
@@ -32,74 +26,27 @@ datos, la API, la interfaz y el despliegue, con el mismo cuidado en cada capa.
 
 ### Stack
 
-<table>
-  <tr>
-    <td width="130"><sub><b>FRONTEND</b></sub></td>
-    <td>
-      <picture>
-        <source media="(prefers-color-scheme: dark)" srcset="https://skillicons.dev/icons?i=react,nextjs,vue,nuxtjs,angular,ts,tailwind,html,css&theme=dark&perline=9">
-        <img src="https://skillicons.dev/icons?i=react,nextjs,vue,nuxtjs,angular,ts,tailwind,html,css&theme=light&perline=9" height="40" alt="React, Next.js, Vue, Nuxt, Angular, TypeScript, Tailwind CSS, HTML y CSS">
-      </picture>
-    </td>
-  </tr>
-  <tr>
-    <td><sub><b>BACKEND</b></sub></td>
-    <td>
-      <picture>
-        <source media="(prefers-color-scheme: dark)" srcset="https://skillicons.dev/icons?i=nodejs,express,laravel,php,java&theme=dark">
-        <img src="https://skillicons.dev/icons?i=nodejs,express,laravel,php,java&theme=light" height="40" alt="Node.js, Express, Laravel, PHP y Java">
-      </picture>
-    </td>
-  </tr>
-  <tr>
-    <td><sub><b>DATOS</b></sub></td>
-    <td>
-      <picture>
-        <source media="(prefers-color-scheme: dark)" srcset="https://skillicons.dev/icons?i=postgres,mysql,mongodb&theme=dark">
-        <img src="https://skillicons.dev/icons?i=postgres,mysql,mongodb&theme=light" height="40" alt="PostgreSQL, MySQL y MongoDB">
-      </picture>
-    </td>
-  </tr>
-  <tr>
-    <td><sub><b>HERRAMIENTAS</b></sub></td>
-    <td>
-      <picture>
-        <source media="(prefers-color-scheme: dark)" srcset="https://skillicons.dev/icons?i=aws,vercel,git,github,githubactions,vitest,figma&theme=dark">
-        <img src="https://skillicons.dev/icons?i=aws,vercel,git,github,githubactions,vitest,figma&theme=light" height="40" alt="AWS, Vercel, Git, GitHub, GitHub Actions, Vitest y Figma">
-      </picture>
-    </td>
-  </tr>
-</table>
+<sub><b>FRONTEND</b></sub><br>
+<picture><source media="(prefers-color-scheme: dark)" srcset="https://skillicons.dev/icons?i=react,nextjs,vue,nuxtjs,angular,ts,tailwind,html,css&theme=dark"><img src="https://skillicons.dev/icons?i=react,nextjs,vue,nuxtjs,angular,ts,tailwind,html,css&theme=light" alt="React, Next.js, Vue, Nuxt, Angular, TypeScript, Tailwind CSS, HTML y CSS"></picture>
+
+<sub><b>BACKEND</b></sub><br>
+<picture><source media="(prefers-color-scheme: dark)" srcset="https://skillicons.dev/icons?i=nodejs,express,laravel,php,java&theme=dark"><img src="https://skillicons.dev/icons?i=nodejs,express,laravel,php,java&theme=light" alt="Node.js, Express, Laravel, PHP y Java"></picture>
+
+<sub><b>DATOS</b></sub><br>
+<picture><source media="(prefers-color-scheme: dark)" srcset="https://skillicons.dev/icons?i=postgres,mysql,mongodb&theme=dark"><img src="https://skillicons.dev/icons?i=postgres,mysql,mongodb&theme=light" alt="PostgreSQL, MySQL y MongoDB"></picture>
+
+<sub><b>HERRAMIENTAS</b></sub><br>
+<picture><source media="(prefers-color-scheme: dark)" srcset="https://skillicons.dev/icons?i=aws,vercel,git,github,githubactions,vitest,figma&theme=dark"><img src="https://skillicons.dev/icons?i=aws,vercel,git,github,githubactions,vitest,figma&theme=light" alt="AWS, Vercel, Git, GitHub, GitHub Actions, Vitest y Figma"></picture>
 
 <br>
 
 ### Proyectos destacados
 
 <p>
-  <a href="https://www.gachamon.ink">
-    <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="assets/gachamon-dark.svg">
-      <img src="assets/gachamon-light.svg" width="49%" alt="Gachamón: arcade Pokémon para el navegador">
-    </picture>
-  </a>
-  <a href="https://serena-app-rust.vercel.app">
-    <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="assets/serena-dark.svg">
-      <img src="assets/serena-light.svg" width="49%" alt="Proyecto Serena: portal para estudiantes con dificultades emocionales">
-    </picture>
-  </a>
-  <a href="https://github.com/Jhonttt/proyecto-intermodular">
-    <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="assets/project-hub-dark.svg">
-      <img src="assets/project-hub-light.svg" width="49%" alt="Project Hub: web para publicar los trabajos de un centro educativo">
-    </picture>
-  </a>
-  <a href="https://github.com/Jhonttt/di-dashboard-gestion-incidencias-atahona">
-    <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="assets/incidencias-dark.svg">
-      <img src="assets/incidencias-light.svg" width="49%" alt="Dashboard de incidencias en JavaFX">
-    </picture>
-  </a>
+  <a href="https://www.gachamon.ink"><picture><source media="(prefers-color-scheme: dark)" srcset="assets/gachamon-dark.svg"><img src="assets/gachamon-light.svg" width="49%" alt="Gachamón: arcade Pokémon para el navegador"></picture></a>
+  <a href="https://serena-app-rust.vercel.app"><picture><source media="(prefers-color-scheme: dark)" srcset="assets/serena-dark.svg"><img src="assets/serena-light.svg" width="49%" alt="Proyecto Serena: portal para estudiantes con dificultades emocionales"></picture></a>
+  <a href="https://github.com/Jhonttt/proyecto-intermodular"><picture><source media="(prefers-color-scheme: dark)" srcset="assets/project-hub-dark.svg"><img src="assets/project-hub-light.svg" width="49%" alt="Project Hub: web para publicar los trabajos de un centro educativo"></picture></a>
+  <a href="https://github.com/Jhonttt/di-dashboard-gestion-incidencias-atahona"><picture><source media="(prefers-color-scheme: dark)" srcset="assets/incidencias-dark.svg"><img src="assets/incidencias-light.svg" width="49%" alt="Dashboard de incidencias en JavaFX"></picture></a>
 </p>
 
 <br>
