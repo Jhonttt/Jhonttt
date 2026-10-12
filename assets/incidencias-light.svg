@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="468" height="176" viewBox="0 0 468 176" role="img" aria-labelledby="t">
+  <title id="t">Dashboard de incidencias</title>
+  <rect x="0.5" y="0.5" width="467" height="175" rx="12" fill="#ffffff" stroke="#d0d7de"/>
+  <circle cx="30" cy="38" r="5" fill="#0f766e"/>
+  <text x="46" y="45" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif" font-size="20" font-weight="600" fill="#1f2328">Dashboard de incidencias</text>
+  <text x="444" y="44" text-anchor="end" font-family="ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace" font-size="12" fill="#59636e">di-dashboard ↗</text>
+  <text font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif" font-size="14.5" fill="#59636e">
+    <tspan x="24" y="84">Escritorio para gestionar incidencias con</tspan>
+    <tspan x="24" y="106">indicadores reactivos, búsqueda y filtros.</tspan>
+  </text>
+  <g>
+    <g transform="translate(24 128)"><rect width="49" height="24" rx="12" fill="#f6f8fa" stroke="#d0d7de"/><text x="24.5" y="16" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace" font-size="12" fill="#59636e">Java</text></g>
+    <g transform="translate(81 128)"><rect width="64" height="24" rx="12" fill="#f6f8fa" stroke="#d0d7de"/><text x="32" y="16" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace" font-size="12" fill="#59636e">JavaFX</text></g>
+    <g transform="translate(153 128)"><rect width="49" height="24" rx="12" fill="#f6f8fa" stroke="#d0d7de"/><text x="24.5" y="16" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace" font-size="12" fill="#59636e">FXML</text></g>
+    <g transform="translate(210 128)"><rect width="57" height="24" rx="12" fill="#f6f8fa" stroke="#d0d7de"/><text x="28.5" y="16" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace" font-size="12" fill="#59636e">Maven</text></g>
+  </g>
+</svg>

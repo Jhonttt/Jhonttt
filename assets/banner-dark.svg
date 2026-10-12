@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="280" viewBox="0 0 960 280" role="img" aria-labelledby="titulo">
+  <title id="titulo">Juan Atahona — Desarrollador fullstack</title>
+  <defs>
+    <pattern id="puntos" width="20" height="20" patternUnits="userSpaceOnUse">
+      <circle cx="1" cy="1" r="1" fill="#21262d"/>
+    </pattern>
+    <linearGradient id="desvanecer" x1="0" x2="1" y1="0" y2="0">
+      <stop offset="0" stop-color="#fff" stop-opacity="0"/>
+      <stop offset="0.55" stop-color="#fff" stop-opacity="0.15"/>
+      <stop offset="1" stop-color="#fff" stop-opacity="1"/>
+    </linearGradient>
+    <mask id="mascara"><rect width="960" height="280" fill="url(#desvanecer)"/></mask>
+    <clipPath id="marco"><rect x="0.5" y="0.5" width="959" height="279" rx="14"/></clipPath>
+    <clipPath id="tecleo"><rect class="tecleo" x="56" y="196" width="233" height="26"/></clipPath>
+  </defs>
+  <style>
+    .orbita { transform-origin: 790px 140px; animation: girar linear infinite; }
+    .o1 { animation-duration: 28s; }
+    .o2 { animation-duration: 44s; animation-direction: reverse; }
+    .o3 { animation-duration: 64s; }
+    /* El retraso negativo hace que arranque con la frase ya escrita. */
+    .tecleo { animation: teclear 7s steps(27, end) -3.5s infinite; }
+    .cursor { animation: seguir 7s steps(27, end) -3.5s infinite; }
+    .parpadeo { animation: parpadeo 1s steps(1, end) infinite; }
+    @keyframes girar { to { transform: rotate(360deg); } }
+    @keyframes teclear { 0% { width: 0; } 45%, 85% { width: 233px; } 100% { width: 0; } }
+    @keyframes seguir { 0% { transform: translateX(0); } 45%, 85% { transform: translateX(233px); } 100% { transform: translateX(0); } }
+    @keyframes parpadeo { 50% { opacity: 0; } }
+    @media (prefers-reduced-motion: reduce) {
+      .orbita, .tecleo, .cursor, .parpadeo { animation: none; }
+      .cursor { transform: translateX(233px); }
+    }
+  </style>
+
+  <g clip-path="url(#marco)">
+    <rect width="960" height="280" fill="#0d1117"/>
+    <rect width="960" height="280" fill="url(#puntos)" mask="url(#mascara)"/>
+
+    <g fill="none" stroke="#30363d" stroke-width="1">
+      <circle cx="790" cy="140" r="52"/>
+      <circle cx="790" cy="140" r="88"/>
+      <circle cx="790" cy="140" r="124" stroke-dasharray="2 6"/>
+    </g>
+    <circle cx="790" cy="140" r="6" fill="#2dd4bf"/>
+    <circle cx="790" cy="140" r="16" fill="none" stroke="#2dd4bf" stroke-opacity="0.35"/>
+    <g class="orbita o1"><circle cx="842" cy="140" r="4" fill="#f0f6fc"/></g>
+    <g class="orbita o2"><circle cx="790" cy="52" r="5" fill="#2dd4bf"/></g>
+    <g class="orbita o3"><circle cx="666" cy="140" r="3.5" fill="#9198a1"/></g>
+  </g>
+
+  <text x="56" y="70" font-family="ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace" font-size="14" fill="#9198a1">~/juan-atahona</text>
+  <text x="54" y="128" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif" font-size="52" font-weight="700" fill="#f0f6fc" letter-spacing="-1.2">Juan Atahona</text>
+  <text x="56" y="164" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif" font-size="22" fill="#9198a1">Desarrollador <tspan fill="#2dd4bf" font-weight="600">fullstack</tspan> · España</text>
+
+  <g clip-path="url(#tecleo)">
+    <text x="56" y="214" font-family="ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace" font-size="15" fill="#f0f6fc">&gt; construyendo gachamon.ink</text>
+  </g>
+  <g class="cursor"><rect class="parpadeo" x="59" y="200" width="8" height="18" fill="#2dd4bf"/></g>
+
+  <rect x="0.5" y="0.5" width="959" height="279" rx="14" fill="none" stroke="#30363d"/>
+</svg>
