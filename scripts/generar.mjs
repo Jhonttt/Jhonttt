@@ -131,7 +131,7 @@ const botones = [
 
 function boton(b, t) {
   const H = 36;
-  const W = Math.round(b.texto.length * 7.9 + 62);
+  const W = Math.round(b.texto.length * 7.1 + 58);
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-labelledby="t">
   <title id="t">${esc(b.texto)}</title>
   <rect x="0.5" y="0.5" width="${W - 1}" height="${H - 1}" rx="18" fill="${t.fondo}" stroke="${t.borde}"/>
