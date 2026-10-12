@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="960" height="280" viewBox="0 0 960 280" role="img" aria-labelledby="titulo">
-  <title id="titulo">Juan Atahona — Desarrollador fullstack</title>
+  <title id="titulo">Juan Atahona — Estudiante de 2º de DAM</title>
   <defs>
     <pattern id="puntos" width="20" height="20" patternUnits="userSpaceOnUse">
       <circle cx="1" cy="1" r="1" fill="#21262d"/>
@@ -11,7 +11,7 @@
     </linearGradient>
     <mask id="mascara"><rect width="960" height="280" fill="url(#desvanecer)"/></mask>
     <clipPath id="marco"><rect x="0.5" y="0.5" width="959" height="279" rx="14"/></clipPath>
-    <clipPath id="tecleo"><rect class="tecleo" x="56" y="196" width="233" height="26"/></clipPath>
+    <clipPath id="tecleo"><rect class="tecleo" x="56" y="196" width="344" height="26"/></clipPath>
   </defs>
   <style>
     .orbita { transform-origin: 790px 140px; animation: girar linear infinite; }
@@ -19,16 +19,16 @@
     .o2 { animation-duration: 44s; animation-direction: reverse; }
     .o3 { animation-duration: 64s; }
     /* El retraso negativo hace que arranque con la frase ya escrita. */
-    .tecleo { animation: teclear 7s steps(27, end) -3.5s infinite; }
-    .cursor { animation: seguir 7s steps(27, end) -3.5s infinite; }
+    .tecleo { animation: teclear 7s steps(40, end) -3.5s infinite; }
+    .cursor { animation: seguir 7s steps(40, end) -3.5s infinite; }
     .parpadeo { animation: parpadeo 1s steps(1, end) infinite; }
     @keyframes girar { to { transform: rotate(360deg); } }
-    @keyframes teclear { 0% { width: 0; } 45%, 85% { width: 233px; } 100% { width: 0; } }
-    @keyframes seguir { 0% { transform: translateX(0); } 45%, 85% { transform: translateX(233px); } 100% { transform: translateX(0); } }
+    @keyframes teclear { 0% { width: 0; } 45%, 85% { width: 344px; } 100% { width: 0; } }
+    @keyframes seguir { 0% { transform: translateX(0); } 45%, 85% { transform: translateX(344px); } 100% { transform: translateX(0); } }
     @keyframes parpadeo { 50% { opacity: 0; } }
     @media (prefers-reduced-motion: reduce) {
       .orbita, .tecleo, .cursor, .parpadeo { animation: none; }
-      .cursor { transform: translateX(233px); }
+      .cursor { transform: translateX(344px); }
     }
   </style>
 
@@ -50,10 +50,10 @@
 
   <text x="56" y="70" font-family="ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace" font-size="14" fill="#9198a1">~/juan-atahona</text>
   <text x="54" y="128" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif" font-size="52" font-weight="700" fill="#f0f6fc" letter-spacing="-1.2">Juan Atahona</text>
-  <text x="56" y="164" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif" font-size="22" fill="#9198a1">Desarrollador <tspan fill="#2dd4bf" font-weight="600">fullstack</tspan> · España</text>
+  <text x="56" y="164" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif" font-size="22" fill="#9198a1">Estudiante de <tspan fill="#2dd4bf" font-weight="600">2º de DAM</tspan> · España</text>
 
   <g clip-path="url(#tecleo)">
-    <text x="56" y="214" font-family="ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace" font-size="15" fill="#f0f6fc">&gt; construyendo gachamon.ink</text>
+    <text x="56" y="214" font-family="ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace" font-size="15" fill="#f0f6fc">&gt; git commit -m "aprendiendo algo nuevo"</text>
   </g>
   <g class="cursor"><rect class="parpadeo" x="59" y="200" width="8" height="18" fill="#2dd4bf"/></g>
 

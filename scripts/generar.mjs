@@ -1,4 +1,4 @@
-// Genera los SVG del perfil (banner y tarjetas de proyecto) en versión clara y
+// Genera los SVG del perfil (banner y botones de contacto) en versión clara y
 // oscura a partir de un solo origen. Uso: node scripts/generar.mjs
 import { writeFileSync, mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -41,12 +41,12 @@ function banner(t) {
   const H = 280;
   const cx = 790;
   const cy = 140;
-  const lema = "> construyendo gachamon.ink";
+  const lema = "> git commit -m \"aprendiendo algo nuevo\"";
   // Ancho aproximado del monoespaciado a 15 px, para la animación de tecleo.
   const anchoLema = Math.ceil(lema.length * 8.6);
 
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-labelledby="titulo">
-  <title id="titulo">Juan Atahona — Desarrollador fullstack</title>
+  <title id="titulo">Juan Atahona — Estudiante de 2º de DAM</title>
   <defs>
     <pattern id="puntos" width="20" height="20" patternUnits="userSpaceOnUse">
       <circle cx="1" cy="1" r="1" fill="${t.tenue}"/>
@@ -97,7 +97,7 @@ function banner(t) {
 
   <text x="56" y="70" font-family="${MONO}" font-size="14" fill="${t.suave}">~/juan-atahona</text>
   <text x="54" y="128" font-family="${SANS}" font-size="52" font-weight="700" fill="${t.texto}" letter-spacing="-1.2">Juan Atahona</text>
-  <text x="56" y="164" font-family="${SANS}" font-size="22" fill="${t.suave}">Desarrollador <tspan fill="${t.acento}" font-weight="600">fullstack</tspan> · España</text>
+  <text x="56" y="164" font-family="${SANS}" font-size="22" fill="${t.suave}">Estudiante de <tspan fill="${t.acento}" font-weight="600">2º de DAM</tspan> · España</text>
 
   <g clip-path="url(#tecleo)">
     <text x="56" y="214" font-family="${MONO}" font-size="15" fill="${t.texto}">${esc(lema)}</text>
@@ -109,70 +109,40 @@ function banner(t) {
 `;
 }
 
-// Las descripciones van ya partidas en líneas: SVG no sabe ajustar texto.
-const proyectos = [
+// Botones de contacto: el icono es un trazo de 16x16 para que no dependa de
+// ninguna fuente de iconos.
+const botones = [
   {
-    archivo: "gachamon",
-    nombre: "Gachamón",
-    enlace: "gachamon.ink",
-    lineas: ["Arcade Pokémon para el navegador: modo aventura", "roguelike, duelos 1v1 en tiempo real y gachapón."],
-    stack: ["Next 16", "React 19", "Postgres", "GSAP"],
+    archivo: "portfolio",
+    texto: "juanatahona.dev",
+    icono: '<circle cx="8" cy="8" r="6.5"/><path d="M1.5 8h13M8 1.5c2 2 2.8 4.2 2.8 6.5S10 12.5 8 14.5M8 1.5C6 3.5 5.2 5.7 5.2 8S6 12.5 8 14.5"/>',
   },
   {
-    archivo: "serena",
-    nombre: "Proyecto Serena",
-    enlace: "serena-app",
-    lineas: ["Portal para estudiantes con dificultades emocionales,", "con roles, JWT y datos sensibles cifrados."],
-    stack: ["React", "Node.js", "Sequelize", "WordPress"],
+    archivo: "linkedin",
+    texto: "LinkedIn",
+    icono: '<rect x="1.5" y="1.5" width="13" height="13" rx="2.5"/><path d="M5 7v4.5M5 4.6v.1M8 11.5V7m0 2.2c0-1.4.9-2.2 2-2.2s1.8.8 1.8 2.2v2.3"/>',
   },
   {
-    archivo: "project-hub",
-    nombre: "Project Hub",
-    enlace: "proyecto-intermodular",
-    lineas: ["Web para que un centro educativo publique", "y gestione los trabajos de sus estudiantes."],
-    stack: ["Angular", "Laravel", "Blade", "Bootstrap"],
-  },
-  {
-    archivo: "incidencias",
-    nombre: "Dashboard de incidencias",
-    enlace: "di-dashboard",
-    lineas: ["Escritorio para gestionar incidencias con", "indicadores reactivos, búsqueda y filtros."],
-    stack: ["Java", "JavaFX", "FXML", "Maven"],
+    archivo: "email",
+    texto: "juan.atahona4@gmail.com",
+    icono: '<rect x="1.5" y="3" width="13" height="10" rx="2"/><path d="m2 4 6 5 6-5"/>',
   },
 ];
 
-function tarjeta(p, t) {
-  const W = 468;
-  const H = 176;
-  const anchoChar = 7.3; // monoespaciado a 12 px
-  let x = 24;
-  const chips = p.stack
-    .map((s) => {
-      const w = Math.round(s.length * anchoChar + 20);
-      const chip = `<g transform="translate(${x} 128)"><rect width="${w}" height="24" rx="12" fill="${t.superficie}" stroke="${t.borde}"/><text x="${w / 2}" y="16" text-anchor="middle" font-family="${MONO}" font-size="12" fill="${t.suave}">${esc(s)}</text></g>`;
-      x += w + 8;
-      return chip;
-    })
-    .join("\n    ");
-
+function boton(b, t) {
+  const H = 36;
+  const W = Math.round(b.texto.length * 7.9 + 62);
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-labelledby="t">
-  <title id="t">${esc(p.nombre)}</title>
-  <rect x="0.5" y="0.5" width="${W - 1}" height="${H - 1}" rx="12" fill="${t.fondo}" stroke="${t.borde}"/>
-  <circle cx="30" cy="38" r="5" fill="${t.acento}"/>
-  <text x="46" y="45" font-family="${SANS}" font-size="20" font-weight="600" fill="${t.texto}">${esc(p.nombre)}</text>
-  <text x="${W - 24}" y="44" text-anchor="end" font-family="${MONO}" font-size="12" fill="${t.suave}">${esc(p.enlace)} ↗</text>
-  <text font-family="${SANS}" font-size="14.5" fill="${t.suave}">
-    ${p.lineas.map((l, i) => `<tspan x="24" y="${84 + i * 22}">${esc(l)}</tspan>`).join("\n    ")}
-  </text>
-  <g>
-    ${chips}
-  </g>
+  <title id="t">${esc(b.texto)}</title>
+  <rect x="0.5" y="0.5" width="${W - 1}" height="${H - 1}" rx="18" fill="${t.fondo}" stroke="${t.borde}"/>
+  <g transform="translate(16 10)" fill="none" stroke="${t.acento}" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">${b.icono}</g>
+  <text x="42" y="23" font-family="${SANS}" font-size="14" fill="${t.texto}">${esc(b.texto)}</text>
 </svg>
 `;
 }
 
 for (const [nombre, t] of Object.entries(temas)) {
   writeFileSync(join(salida, `banner-${nombre}.svg`), banner(t));
-  for (const p of proyectos) writeFileSync(join(salida, `${p.archivo}-${nombre}.svg`), tarjeta(p, t));
+  for (const b of botones) writeFileSync(join(salida, `${b.archivo}-${nombre}.svg`), boton(b, t));
 }
 console.log("SVG generados en", salida);
