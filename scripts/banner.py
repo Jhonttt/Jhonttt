@@ -231,6 +231,9 @@ def construir(tema: str, perfil: dict) -> str:
     cierre = asignar(posiciones[-1], posiciones[0])
     vuelta_p, vuelta_r = posiciones[0][cierre], radios[0][cierre]
 
+    # Estado de partida = el retrato completo. La intro (dispersión -> retrato)
+    # es una animación encima; donde no se anima (la app móvil de GitHub, una
+    # vista previa) el banner no se queda vacío.
     dispersion = np.column_stack([rng.uniform(-80, ZW + 80, VIAJERAS), rng.uniform(-60, ZH + 60, VIAJERAS)])
 
     # Tiempos clave del ciclo: quieta, viaja, quieta, viaja… y vuelta a empezar.
@@ -255,7 +258,7 @@ def construir(tema: str, perfil: dict) -> str:
         d0 = dispersion[i]
         p0 = posiciones[0][i]
         viajeras.append(
-            f'<circle r="0">'
+            f'<circle r="{f(radios[0][i])}" transform="translate({f(p0[0])} {f(p0[1])})">'
             f'<animateTransform attributeName="transform" type="translate" dur="{INTRO}s" fill="freeze" '
             f'values="{f(d0[0])} {f(d0[1])};{f(p0[0])} {f(p0[1])}" calcMode="spline" keyTimes="0;1" keySplines="0.2 0.7 0.2 1"/>'
             f'<animate attributeName="r" dur="{INTRO}s" fill="freeze" values="0;{f(radios[0][i])}"/>'
@@ -287,15 +290,16 @@ def construir(tema: str, perfil: dict) -> str:
             if k == 0 else ""
         )
         puntos = "".join(f'<circle cx="{f(x)}" cy="{f(y)}" r="{f(r)}"/>' for (x, y), r in zip(pts, rad))
-        estaticos.append(f'<g fill="{color}" opacity="0">{intro}{anim}{puntos}</g>')
+        de_partida = "1" if k == 0 else "0"
+        estaticos.append(f'<g fill="{color}" opacity="{de_partida}">{intro}{anim}{puntos}</g>')
         rotulos_svg.append(
-            f'<text x="680" y="446" font-family="{MONO}" font-size="19" fill="{t["suave"]}" opacity="0">'
+            f'<text x="680" y="446" font-family="{MONO}" font-size="19" fill="{t["suave"]}" opacity="{de_partida}">'
             f'{intro}{anim}<tspan fill="{t["acento"]}">›</tspan> {esc(rotulos[k])}</text>'
         )
         x = 680 + k * (ancho_paso + 6)
         pasos.append(
             f'<rect x="{x}" y="468" width="{ancho_paso}" height="4" rx="2" fill="{t["tenue"]}"/>'
-            f'<rect x="{x}" y="468" width="{ancho_paso}" height="4" rx="2" fill="{t["acento"]}" opacity="0">{intro}{anim}</rect>'
+            f'<rect x="{x}" y="468" width="{ancho_paso}" height="4" rx="2" fill="{t["acento"]}" opacity="{de_partida}">{intro}{anim}</rect>'
         )
 
     nombre = esc(perfil["nombre"])
