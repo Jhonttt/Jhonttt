@@ -67,6 +67,10 @@ TEMAS: dict[str, dict[str, str]] = {
 
 # --- tipografía ------------------------------------------------------------
 
+# Marca de tiempo fija para las fuentes recortadas (segundos desde 1904, el
+# origen de las fechas de OpenType): 2026-01-01.
+FECHA_FIJA = 3850070400
+
 # clave -> (fichero, ejes de la fuente variable, familia CSS, peso CSS)
 _FUENTES = {
     "sans400": ("Inter.ttf", {"wght": 400, "opsz": 14}, "JA Sans", 400),
@@ -105,7 +109,11 @@ ESTILOS = {
 def _fuente_bytes(clave: str) -> bytes:
     """La instancia estática de la fuente variable, serializada (instanciar es lento)."""
     fichero, ejes, _, _ = _FUENTES[clave]
-    f = instancer.instantiateVariableFont(TTFont(FUENTES / fichero), ejes)
+    f = instancer.instantiateVariableFont(TTFont(FUENTES / fichero, recalcTimestamp=False), ejes)
+    # Sin esto, fontTools graba la hora de cada guardado dentro de la fuente y
+    # cada ejecución daría SVG distintos: un commit diario de todo para nada.
+    f.recalcTimestamp = False
+    f["head"].modified = FECHA_FIJA
     buf = io.BytesIO()
     f.save(buf)
     return buf.getvalue()
@@ -148,7 +156,7 @@ def envolver(texto: str, estilo: str, ancho_max: float) -> list[str]:
 @lru_cache(maxsize=None)
 def _subconjunto(clave: str, caracteres: str) -> str:
     """La fuente `clave` recortada a `caracteres`, en WOFF2 y base64."""
-    f = TTFont(io.BytesIO(_fuente_bytes(clave)))
+    f = TTFont(io.BytesIO(_fuente_bytes(clave)), recalcTimestamp=False)
     opciones = subset.Options()
     opciones.flavor = "woff2"
     opciones.layout_features = ["kern", "liga", "calt", "tnum", "case"]
