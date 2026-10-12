@@ -1,0 +1,89 @@
+{
+  "_comentario": "Fuente de todo el perfil. Cambia algo aquí y el workflow 'Perfil' vuelve a dibujar las tarjetas.",
+  "usuario": "Jhonttt",
+  "nombre": "Juan Atahona",
+  "linea": "Estudiante de 2º de DAM",
+  "lugar": "España",
+  "ficha": [
+    [
+      "estudio",
+      "2º de Desarrollo de Aplicaciones Multiplataforma"
+    ],
+    [
+      "desde",
+      "España · Europe/Madrid"
+    ],
+    [
+      "ahora",
+      "un juego de Pokémon para el navegador"
+    ],
+    [
+      "me gusta",
+      "entender cómo funcionan las cosas por dentro"
+    ],
+    [
+      "aprendiendo",
+      "arquitectura, bases de datos y animación web"
+    ]
+  ],
+  "stack": [
+    {
+      "grupo": "lenguajes",
+      "iconos": [
+        "typescript",
+        "javascript",
+        "openjdk",
+        "php"
+      ]
+    },
+    {
+      "grupo": "interfaz",
+      "iconos": [
+        "react",
+        "nextdotjs",
+        "vuedotjs",
+        "nuxtdotjs",
+        "angular",
+        "tailwindcss"
+      ]
+    },
+    {
+      "grupo": "servidor",
+      "iconos": [
+        "nodedotjs",
+        "express",
+        "laravel"
+      ]
+    },
+    {
+      "grupo": "datos",
+      "iconos": [
+        "mysql",
+        "postgresql",
+        "mongodb"
+      ]
+    },
+    {
+      "grupo": "día a día",
+      "iconos": [
+        "git",
+        "github",
+        "githubactions",
+        "vercel",
+        "figma"
+      ]
+    }
+  ],
+  "transformaciones": [
+    "retrato",
+    "nombre",
+    "typescript",
+    "react",
+    "vuedotjs"
+  ],
+  "contacto": {
+    "web": "https://juanatahona.dev",
+    "linkedin": "https://www.linkedin.com/in/juan-atahona/",
+    "email": "juan.atahona4@gmail.com"
+  }
+}

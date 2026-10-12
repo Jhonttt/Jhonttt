@@ -1,0 +1,71 @@
+# Vuelve a dibujar el perfil.
+#
+# - Cada día, para que el calendario y los lenguajes estén al día.
+# - Al cambiar datos/perfil.json, los scripts o la foto, para que el cambio
+#   se vea sin tener que generar nada a mano.
+#
+# Con el GITHUB_TOKEN de Actions solo se ven los repositorios públicos. Para
+# contar también los privados en "En qué escribo": crea un token personal con
+# permiso de lectura de repositorios, guárdalo como secreto PERFIL_TOKEN y pon
+# "lenguajes_privados": true en datos/perfil.json.
+name: Perfil
+
+on:
+  schedule:
+    - cron: "17 4 * * *"
+  push:
+    branches: [main]
+    paths:
+      - "datos/**"
+      - "scripts/**"
+      - "assets/source/**"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: perfil
+  cancel-in-progress: false
+
+jobs:
+  dibujar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: scripts/requirements.txt
+
+      - name: Dependencias del banner
+        run: pip install -r scripts/requirements.txt
+
+      - name: Ficha, stack y botones
+        working-directory: scripts
+        run: python ficha.py
+
+      - name: Actividad y lenguajes
+        working-directory: scripts
+        env:
+          GITHUB_TOKEN: ${{ secrets.PERFIL_TOKEN || secrets.GITHUB_TOKEN }}
+        run: python actividad.py
+
+      - name: Banner
+        working-directory: scripts
+        run: python banner.py
+
+      - name: Guardar si ha cambiado algo
+        run: |
+          git add assets
+          if git diff --cached --quiet; then
+            echo "Nada que actualizar."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "chore: perfil actualizado"
+          git push

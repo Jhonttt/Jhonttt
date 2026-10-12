@@ -1,43 +1,52 @@
-<div align="center">
-
-<picture><source media="(prefers-color-scheme: dark)" srcset="assets/banner-dark.svg"><img src="assets/banner-light.svg" width="960" alt="Juan Atahona — Estudiante de 2º de DAM en España"></picture>
-
-<a href="https://juanatahona.dev"><picture><source media="(prefers-color-scheme: dark)" srcset="assets/portfolio-dark.svg"><img src="assets/portfolio-light.svg" height="36" alt="juanatahona.dev"></picture></a>&nbsp;
-<a href="https://www.linkedin.com/in/juan-atahona/"><picture><source media="(prefers-color-scheme: dark)" srcset="assets/linkedin-dark.svg"><img src="assets/linkedin-light.svg" height="36" alt="LinkedIn"></picture></a>&nbsp;
-<a href="mailto:juan.atahona4@gmail.com"><picture><source media="(prefers-color-scheme: dark)" srcset="assets/email-dark.svg"><img src="assets/email-light.svg" height="36" alt="juan.atahona4@gmail.com"></picture></a>
-
-</div>
-
-<br>
-
-### Sobre mí
-
-¡Hola! Soy Juan, estudiante de 2º de DAM en España.
-
-- Aquí guardo lo que hago en clase y los proyectos que hago por mi cuenta.
-- Ahora mismo estoy con un juego de Pokémon para el navegador.
-- Me gusta probar tecnologías nuevas y entender cómo funcionan las cosas por dentro.
-
-<br>
-
-### Stack
-
-<!-- Las comas de la URL van como %2C: en srcset, una coma corta la URL. -->
-
-<sub><b>FRONTEND</b></sub><br>
-<picture><source media="(prefers-color-scheme: dark)" srcset="https://skillicons.dev/icons?i=react%2Cnextjs%2Cvue%2Cnuxtjs%2Cangular%2Cts%2Ctailwind%2Chtml%2Ccss&theme=dark"><img src="https://skillicons.dev/icons?i=react%2Cnextjs%2Cvue%2Cnuxtjs%2Cangular%2Cts%2Ctailwind%2Chtml%2Ccss&theme=light" alt="React, Next.js, Vue, Nuxt, Angular, TypeScript, Tailwind CSS, HTML y CSS"></picture>
-
-<sub><b>BACKEND</b></sub><br>
-<picture><source media="(prefers-color-scheme: dark)" srcset="https://skillicons.dev/icons?i=nodejs%2Cexpress%2Claravel%2Cphp%2Cjava&theme=dark"><img src="https://skillicons.dev/icons?i=nodejs%2Cexpress%2Claravel%2Cphp%2Cjava&theme=light" alt="Node.js, Express, Laravel, PHP y Java"></picture>
-
-<sub><b>DATOS</b></sub><br>
-<picture><source media="(prefers-color-scheme: dark)" srcset="https://skillicons.dev/icons?i=mysql%2Cpostgres%2Cmongodb&theme=dark"><img src="https://skillicons.dev/icons?i=mysql%2Cpostgres%2Cmongodb&theme=light" alt="MySQL, PostgreSQL y MongoDB"></picture>
-
-<sub><b>HERRAMIENTAS</b></sub><br>
-<picture><source media="(prefers-color-scheme: dark)" srcset="https://skillicons.dev/icons?i=git%2Cgithub%2Cgithubactions%2Cvercel%2Cvitest%2Cfigma&theme=dark"><img src="https://skillicons.dev/icons?i=git%2Cgithub%2Cgithubactions%2Cvercel%2Cvitest%2Cfigma&theme=light" alt="Git, GitHub, GitHub Actions, Vercel, Vitest y Figma"></picture>
-
-<br>
+<!--
+  Este README casi no tiene texto: todo lo que se ve son SVG generados por
+  scripts/ desde datos/perfil.json. Para cambiar algo, edita ese JSON; el
+  workflow "Perfil" vuelve a dibujarlo todo (y cada día refresca la actividad).
+-->
 
 <div align="center">
-<sub>Juan Atahona · España · <a href="https://juanatahona.dev">juanatahona.dev</a></sub>
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/banner-dark.svg">
+  <img src="assets/banner-light.svg" width="100%" alt="Juan Atahona, estudiante de 2º de DAM en España. Un retrato en semitono que se recompone en su nombre y en logos de su stack.">
+</picture>
+
+<br><br>
+
+<a href="https://juanatahona.dev"><picture><source media="(prefers-color-scheme: dark)" srcset="assets/boton-web-dark.svg"><img src="assets/boton-web-light.svg" height="44" alt="juanatahona.dev"></picture></a>&nbsp;
+<a href="https://www.linkedin.com/in/juan-atahona/"><picture><source media="(prefers-color-scheme: dark)" srcset="assets/boton-linkedin-dark.svg"><img src="assets/boton-linkedin-light.svg" height="44" alt="LinkedIn"></picture></a>&nbsp;
+<a href="mailto:juan.atahona4@gmail.com"><picture><source media="(prefers-color-scheme: dark)" srcset="assets/boton-email-dark.svg"><img src="assets/boton-email-light.svg" height="44" alt="juan.atahona4@gmail.com"></picture></a>
+
+<br><br>
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/sobre-mi-dark.svg">
+  <img src="assets/sobre-mi-light.svg" width="100%" alt="Sobre mí: estudio 2º de Desarrollo de Aplicaciones Multiplataforma, desde España.">
+</picture>
+
+<br><br>
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/stack-dark.svg">
+  <img src="assets/stack-light.svg" width="100%" alt="Con qué trabajo: TypeScript, JavaScript, Java, PHP, React, Next.js, Vue, Nuxt, Angular, Tailwind CSS, Node.js, Express, Laravel, MySQL, PostgreSQL, MongoDB, Git, GitHub, GitHub Actions, Vercel y Figma.">
+</picture>
+
+<br><br>
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/actividad-dark.svg">
+  <img src="assets/actividad-light.svg" width="100%" alt="Calendario de contribuciones del último año, con las rachas y el día de la semana con más actividad.">
+</picture>
+
+<br><br>
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/lenguajes-dark.svg">
+  <img src="assets/lenguajes-light.svg" width="100%" alt="Reparto de lenguajes en mis repositorios públicos.">
+</picture>
+
+<br><br>
+
+<sub>Generado con Python desde <a href="datos/perfil.json"><code>datos/perfil.json</code></a> · la actividad se actualiza sola cada día</sub>
+
 </div>
