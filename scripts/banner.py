@@ -1,352 +1,227 @@
 #!/usr/bin/env python3
-"""Banner animado del perfil: un retrato en semitono que se recompone en el
-nombre y en los logos del stack.
+"""Cabecera del perfil: el nombre a la izquierda y, detrás, un mapa del mundo
+hecho de puntos del que sale una onda desde mi ciudad.
 
-Cada forma es un semitono estático completo, con todo su detalle, que aparece
-y desaparece con la opacidad de su grupo. Por encima, unas cientos de
-partículas viajeras hacen el trayecto de una forma a la siguiente; el reparto
-entre formas se resuelve como un problema de asignación (Hungarian) para que
-ninguna cruce el banner sin necesidad.
+El mapa se construye de cero:
+  1. Lee las costas de Natural Earth (TopoJSON de world-atlas, 1:110m) y
+     decodifica sus arcos.
+  2. Los proyecta con Equal Earth (Šavrič, Patterson y Jenny, 2018), la
+     proyección de áreas iguales que usan hoy muchos atlas.
+  3. Rasteriza la tierra y la muestrea en una retícula: cada celda con tierra
+     es un punto.
+  4. Cada punto tiene una animación de opacidad que empieza con un retraso
+     proporcional a su distancia a la ciudad: eso es la onda. Todos comparten
+     los mismos valores; solo cambia cuándo empiezan.
 
-Uso, desde la raíz del repositorio:
-    python scripts/banner.py
-
-Necesita: pip install -r scripts/requirements.txt
-Lee la foto de assets/source/retrato.png y el resto de datos/perfil.json.
+Uso: python scripts/banner.py
 """
 
 from __future__ import annotations
 
-from collections import deque
-from pathlib import Path
+import json
+import math
 
 import numpy as np
-from PIL import Image, ImageDraw, ImageFilter, ImageFont, ImageOps
-from scipy.optimize import linear_sum_assignment
-from scipy.spatial.distance import cdist
-from svgelements import Path as TrazadoSVG
+from PIL import Image, ImageDraw
 
-from comun import ASSETS, MONO, SANS, TEMAS, datos, esc, guardar, icono
+from comun import ANCHO, FUENTES, TEMAS, Lienzo, datos, envolver, f1, guardar
 
-W, H = 1200, 540
-# La zona de las partículas, a la izquierda.
-ZX, ZY, ZW, ZH = 40, 40, 480, 460
+ALTO = 380
+PASO = 8.0            # separación de la retícula de puntos, en px
+RADIO = 1.55          # radio de cada punto
+ESCALA_MAPA = 172.0   # px por unidad de Equal Earth (el mundo mide ~5.4 x 2.6)
+CIUDAD_X = 652        # dónde cae la ciudad en el banner
+CIUDAD_Y = 150
+LAT_MIN = -58         # fuera la Antártida
 
-VIAJERAS = 760
-DETALLE = 2300          # puntos del retrato estático
-SEPARACION_MIN = 7.5    # paso mínimo de la retícula, en píxeles
-INTRO = 2.6             # segundos que tardan en llegar al principio
-QUIETO = 3.8            # segundos que se queda cada forma
-CAMBIO = 1.4            # segundos de viaje entre formas
-FUNDIDO = 0.28          # lo que tarda un semitono en aparecer o irse
-SEMILLA = 20041
-RETRATO = ASSETS / "source" / "retrato.png"
-FUENTE = ASSETS / "source" / "Inter.ttf"
+ONDA_PERIODO = 5.2    # s entre una onda y la siguiente
+ONDA_VELOCIDAD = 165  # px/s
+ONDA_ALCANCE = 640    # px a los que la onda ya se ha apagado
 
-NOMBRES_VISIBLES = {"openjdk": "java", "vuedotjs": "vue", "nextdotjs": "next.js", "nodedotjs": "node.js"}
+# Iconos de trazo (16x16) para las líneas de datos del banner.
+ICONOS = {
+    "lugar": '<path d="M8 14.5s5-4.3 5-8.5a5 5 0 0 0-10 0c0 4.2 5 8.5 5 8.5Z"/><circle cx="8" cy="6" r="1.8"/>',
+    "estudios": '<path d="M1.5 6 8 3l6.5 3L8 9 1.5 6Z"/><path d="M4.5 7.5v3.2c0 .9 1.6 1.8 3.5 1.8s3.5-.9 3.5-1.8V7.5M14.5 6v4"/>',
+    "trabajo": '<rect x="1.8" y="4.5" width="12.4" height="9" rx="1.6"/><path d="M5.5 4.5V3.2c0-.7.6-1.2 1.2-1.2h2.6c.7 0 1.2.5 1.2 1.2v1.3M1.8 8.5h12.4"/>',
+    "idiomas": '<circle cx="8" cy="8" r="6.5"/><path d="M1.5 8h13M8 1.5c1.9 1.9 2.8 4.1 2.8 6.5S9.9 12.6 8 14.5M8 1.5C6.1 3.4 5.2 5.6 5.2 8s.9 4.6 2.8 6.5"/>',
+    "codigo": '<path d="m5.5 4.5-3.5 3.5 3.5 3.5M10.5 4.5l3.5 3.5-3.5 3.5"/>',
+}
 
 
-# --- formas ----------------------------------------------------------------
+# --- Equal Earth -----------------------------------------------------------
 
-def reticula(paso: float) -> np.ndarray:
-    """Centros de una retícula hexagonal que cubre la zona, en coordenadas locales."""
+A1, A2, A3, A4 = 1.340264, -0.081106, 0.000893, 0.003796
+M = math.sqrt(3) / 2
+
+
+def equal_earth(lon: np.ndarray, lat: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    """Proyección Equal Earth. Grados de entrada; unidades de la proyección a la salida."""
+    lam = np.radians(lon)
+    phi = np.radians(lat)
+    th = np.arcsin(M * np.sin(phi))
+    th2 = th * th
+    th6 = th2 * th2 * th2
+    x = lam * np.cos(th) / (M * (A1 + 3 * A2 * th2 + th6 * (7 * A3 + 9 * A4 * th2)))
+    y = th * (A1 + A2 * th2 + th6 * (A3 + A4 * th2))
+    return x, y
+
+
+# --- TopoJSON --------------------------------------------------------------
+
+def anillos_de_tierra() -> list[list[np.ndarray]]:
+    """Polígonos de tierra como listas de anillos (lon, lat). El primero es el exterior."""
+    topo = json.loads((FUENTES / "land-110m.json").read_text(encoding="utf-8"))
+    sx, sy = topo["transform"]["scale"]
+    tx, ty = topo["transform"]["translate"]
+    arcos = []
+    for arco in topo["arcs"]:
+        q = np.cumsum(np.array(arco, dtype=float), axis=0)
+        arcos.append(np.column_stack([q[:, 0] * sx + tx, q[:, 1] * sy + ty]))
+
+    def anillo(indices: list[int]) -> np.ndarray:
+        trozos = []
+        for k, i in enumerate(indices):
+            a = arcos[i] if i >= 0 else arcos[~i][::-1]
+            trozos.append(a if k == 0 else a[1:])
+        return np.vstack(trozos)
+
+    poligonos = []
+    for geom in topo["objects"]["land"]["geometries"]:
+        partes = geom["arcs"] if geom["type"] == "MultiPolygon" else [geom["arcs"]]
+        for poligono in partes:
+            anillos = [anillo(r) for r in poligono]
+            if anillos[0][:, 1].max() < LAT_MIN:
+                continue
+            poligonos.append(anillos)
+    return poligonos
+
+
+def puntos_del_mapa(perfil: dict) -> tuple[np.ndarray, tuple[float, float]]:
+    """Centros de los puntos de tierra en coordenadas del banner, y la posición de la ciudad."""
+    lugar = perfil["ubicacion"]
+    cx, cy = equal_earth(np.array([lugar["lon"]]), np.array([lugar["lat"]]))
+
+    def a_banner(x, y):
+        # Del espacio de la proyección al del banner: la ciudad cae en (CIUDAD_X, CIUDAD_Y).
+        return CIUDAD_X + (x - cx[0]) * ESCALA_MAPA, CIUDAD_Y - (y - cy[0]) * ESCALA_MAPA
+
+    sobre = 4  # sobremuestreo del rasterizado
+    lienzo = Image.new("L", (ANCHO * sobre, ALTO * sobre), 0)
+    dibujo = ImageDraw.Draw(lienzo)
+    for anillos in anillos_de_tierra():
+        for k, r in enumerate(anillos):
+            x, y = equal_earth(r[:, 0], r[:, 1])
+            bx, by = a_banner(x, y)
+            dibujo.polygon(list(zip(bx * sobre, by * sobre)), fill=0 if k else 255)
+    tierra = np.asarray(lienzo) > 0
+
     puntos = []
-    fila = 0
-    y = paso / 2
-    while y < ZH:
-        x = paso / 2 + (paso / 2 if fila % 2 else 0)
-        while x < ZW:
-            puntos.append((x, y))
-            x += paso
-        y += paso * 0.866
-        fila += 1
-    return np.array(puntos)
-
-
-def muestrear(mascara: np.ndarray, paso: float) -> np.ndarray:
-    pts = reticula(paso)
-    xi = np.clip(pts[:, 0].astype(int), 0, ZW - 1)
-    yi = np.clip(pts[:, 1].astype(int), 0, ZH - 1)
-    return pts[mascara[yi, xi]]
-
-
-def paso_para(mascara: np.ndarray, objetivo: int) -> float:
-    """El paso de retícula que deja cerca de `objetivo` puntos dentro de la máscara."""
-    area = float(mascara.sum())
-    return max(SEPARACION_MIN, (area / (0.866 * objetivo)) ** 0.5)
-
-
-def conectado_al_borde(claro: np.ndarray) -> np.ndarray:
-    """Píxeles claros unidos al borde: el fondo de la foto, no los brillos de la cara."""
-    alto, ancho = claro.shape
-    visto = np.zeros_like(claro)
-    cola: deque[tuple[int, int]] = deque()
-    for x in range(ancho):
-        cola.extend(((0, x), (alto - 1, x)))
-    for y in range(alto):
-        cola.extend(((y, 0), (y, ancho - 1)))
-    while cola:
-        y, x = cola.popleft()
-        if visto[y, x] or not claro[y, x]:
-            continue
-        visto[y, x] = True
-        for ny, nx in ((y - 1, x), (y + 1, x), (y, x - 1), (y, x + 1)):
-            if 0 <= ny < alto and 0 <= nx < ancho:
-                cola.append((ny, nx))
-    return visto
-
-
-def lienzo(imagen: Image.Image) -> Image.Image:
-    """Encaja una imagen en la zona, centrada, sin deformarla."""
-    escala = min(ZW / imagen.width, ZH / imagen.height)
-    imagen = imagen.resize((round(imagen.width * escala), round(imagen.height * escala)), Image.LANCZOS)
-    fondo = Image.new(imagen.mode, (ZW, ZH), 0 if imagen.mode == "L" else (255, 255, 255))
-    fondo.paste(imagen, ((ZW - imagen.width) // 2, ZH - imagen.height))
-    return fondo
-
-
-def forma_retrato(tema: str) -> tuple[np.ndarray, np.ndarray]:
-    foto = lienzo(Image.open(RETRATO).convert("RGB"))
-    gris = np.asarray(ImageOps.grayscale(foto), dtype=float) / 255
-    mascara = ~conectado_al_borde(gris > 0.9)
-    # Cierra los huecos del contorno para que el pelo no se deshilache.
-    m = Image.fromarray((mascara * 255).astype("uint8")).filter(ImageFilter.MaxFilter(3)).filter(ImageFilter.MinFilter(5))
-    mascara = np.asarray(m) > 127
-
-    # Contraste estirado solo con los píxeles de la persona.
-    dentro = gris[mascara]
-    lo, hi = np.percentile(dentro, 2), np.percentile(dentro, 98)
-    luz = np.clip((gris - lo) / max(hi - lo, 1e-6), 0, 1)
-
-    paso = paso_para(mascara, DETALLE)
-    pts = muestrear(mascara, paso)
-    l = luz[pts[:, 1].astype(int), pts[:, 0].astype(int)]
-    # En oscuro, puntos de luz sobre negro: lo claro pesa más. En claro, tinta
-    # sobre papel: pesa lo oscuro. Un mínimo para que la silueta no se pierda.
-    v = l if tema == "dark" else 1 - l
-    v = 0.16 + 0.84 * v ** 1.1
-    radios = v * paso * 0.56
-    return pts, radios
-
-
-def forma_texto(texto: str) -> tuple[np.ndarray, np.ndarray]:
-    lienzo_txt = Image.new("L", (ZW * 2, ZH * 2), 0)
-    dibujo = ImageDraw.Draw(lienzo_txt)
-    # Fuente incluida en el repositorio: con una del sistema, el workflow
-    # (Linux) dibujaría otro banner que el de un Windows o un Mac.
-    fuente = ImageFont.truetype(str(FUENTE), 360)
-    fuente.set_variation_by_axes([32, 700])
-    caja = dibujo.textbbox((0, 0), texto, font=fuente)
-    dibujo.text((-caja[0] + 20, -caja[1] + 20), texto, fill=255, font=fuente)
-    recorte = lienzo_txt.crop(lienzo_txt.getbbox())
-    recorte.thumbnail((ZW - 30, ZH - 30))
-    zona = Image.new("L", (ZW, ZH), 0)
-    zona.paste(recorte, ((ZW - recorte.width) // 2, (ZH - recorte.height) // 2))
-    mascara = np.asarray(zona) > 127
-    paso = paso_para(mascara, 1400)
-    pts = muestrear(mascara, paso)
-    return pts, np.full(len(pts), paso * 0.36)
-
-
-def forma_icono(slug: str) -> tuple[np.ndarray, np.ndarray]:
-    _, d = icono(slug)
-    lado = 360
-    escala = lado / 24
-    capa = np.zeros((ZH, ZW), dtype=bool)
-    # Cada subtrazado se rellena aparte y se combinan con XOR: es la regla
-    # evenodd, la que hace que los agujeros de los logos sean agujeros.
-    for sub in TrazadoSVG(d).as_subpaths():
-        sub = TrazadoSVG(sub)
-        n = max(32, int(sub.length() * escala / 2))
-        puntos = [sub.point(t) for t in np.linspace(0, 1, n)]
-        poligono = [((p.x * escala) + (ZW - lado) / 2, (p.y * escala) + (ZH - lado) / 2) for p in puntos]
-        img = Image.new("1", (ZW, ZH), 0)
-        ImageDraw.Draw(img).polygon(poligono, fill=1)
-        capa ^= np.asarray(img, dtype=bool)
-    paso = paso_para(capa, 1500)
-    pts = muestrear(capa, paso)
-    return pts, np.full(len(pts), paso * 0.38)
-
-
-# --- viajeras --------------------------------------------------------------
-
-def elegir(pts: np.ndarray, radios: np.ndarray, n: int, rng: np.random.Generator) -> tuple[np.ndarray, np.ndarray]:
-    """n puntos de una forma para las viajeras; si no hay bastantes, se repiten."""
-    idx = rng.choice(len(pts), size=n, replace=len(pts) < n)
-    return pts[idx], radios[idx]
-
-
-def asignar(desde: np.ndarray, hasta: np.ndarray) -> np.ndarray:
-    filas, cols = linear_sum_assignment(cdist(desde, hasta, "sqeuclidean"))
-    orden = np.empty(len(desde), dtype=int)
-    orden[filas] = cols
-    return orden
+    lado = int(PASO * sobre)
+    for y in np.arange(PASO / 2, ALTO, PASO):
+        for x in np.arange(PASO / 2, ANCHO, PASO):
+            # Una celda es tierra si lo es una parte razonable de ella, no solo su centro.
+            x0, y0 = int((x - PASO / 2) * sobre), int((y - PASO / 2) * sobre)
+            celda = tierra[y0:y0 + lado, x0:x0 + lado]
+            if celda.size and celda.mean() > 0.22:
+                puntos.append((x, y))
+    return np.array(puntos), (CIUDAD_X, CIUDAD_Y)
 
 
 # --- SVG -------------------------------------------------------------------
 
-def f(x: float) -> str:
-    return f"{x:.1f}".rstrip("0").rstrip(".")
-
-
-def construir(tema: str, perfil: dict) -> str:
+def construir(tema: str, perfil: dict, puntos: np.ndarray, ciudad: tuple[float, float]) -> str:
     t = TEMAS[tema]
-    rng = np.random.default_rng(SEMILLA)
+    lz = Lienzo(ANCHO, ALTO, tema, f"{perfil['nombre']} — {perfil['titular']}",
+                f"{perfil['nombre']}. {perfil['titular']}. {perfil['ubicacion']['texto']}.")
+    ccx, ccy = ciudad
 
-    claves = perfil["transformaciones"]
-    formas, colores, rotulos = [], [], []
-    for clave in claves:
-        if clave == "retrato":
-            formas.append(forma_retrato(tema))
-            colores.append(t["tinta"])
-            rotulos.append("retrato")
-        elif clave == "nombre":
-            nombre = perfil["nombre"].split()[0]
-            formas.append(forma_texto(nombre))
-            colores.append(t["tinta"])
-            rotulos.append(nombre.lower())
-        else:
-            formas.append(forma_icono(clave))
-            colores.append(t["acento"])
-            rotulos.append(NOMBRES_VISIBLES.get(clave, icono(clave)[0].lower()))
+    lz.defs_raw(
+        f'<clipPath id="marco"><rect x="0.5" y="0.5" width="{ANCHO - 1}" height="{ALTO - 1}" rx="12"/></clipPath>'
+        # El mapa se apaga hacia la izquierda para que el texto respire, y en los bordes.
+        '<linearGradient id="fundido" x1="0" x2="1" y1="0" y2="0">'
+        '<stop offset="0" stop-color="#fff" stop-opacity="0.14"/>'
+        '<stop offset="0.38" stop-color="#fff" stop-opacity="0.3"/>'
+        '<stop offset="0.62" stop-color="#fff" stop-opacity="1"/>'
+        '<stop offset="1" stop-color="#fff" stop-opacity="1"/></linearGradient>'
+        '<linearGradient id="fundido-v" x1="0" x2="0" y1="0" y2="1">'
+        '<stop offset="0" stop-color="#000" stop-opacity="0.85"/><stop offset="0.16" stop-color="#000" stop-opacity="0"/>'
+        '<stop offset="0.84" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity="0.85"/></linearGradient>'
+        f'<mask id="mascara"><rect width="{ANCHO}" height="{ALTO}" fill="url(#fundido)"/>'
+        f'<rect width="{ANCHO}" height="{ALTO}" fill="url(#fundido-v)"/></mask>'
+        f'<radialGradient id="halo" cx="{ccx / ANCHO:.3f}" cy="{ccy / ALTO:.3f}" r="0.42">'
+        f'<stop offset="0" stop-color="{t["acento"]}" stop-opacity="0.16"/>'
+        f'<stop offset="1" stop-color="{t["acento"]}" stop-opacity="0"/></radialGradient>'
+    )
 
-    n_formas = len(formas)
-    ciclo = n_formas * (QUIETO + CAMBIO)
+    lz.raw('<g clip-path="url(#marco)">')
+    lz.raw(f'<rect width="{ANCHO}" height="{ALTO}" fill="{t["fondo"]}"/>')
+    lz.raw(f'<rect width="{ANCHO}" height="{ALTO}" fill="url(#halo)"/>')
 
-    # Las viajeras: una posición por forma, encadenadas por asignación.
-    posiciones, radios = [], []
-    actual = None
-    for pts, rad in formas:
-        p, r = elegir(pts, rad, VIAJERAS, rng)
-        if actual is not None:
-            orden = asignar(actual, p)
-            p, r = p[orden], r[orden]
-        posiciones.append(p)
-        radios.append(r)
-        actual = p
-    # Cierra el ciclo. La vuelta al retrato va al punto libre más cercano, no al
-    # de salida, para que el último viaje también sea corto. El salto que eso
-    # deja al reiniciar no se ve: ocurre con el retrato estático encendido, y
-    # cada viajera descansa sobre un punto idéntico de ese semitono.
-    cierre = asignar(posiciones[-1], posiciones[0])
-    vuelta_p, vuelta_r = posiciones[0][cierre], radios[0][cierre]
+    # Capa base: todos los puntos, quietos, algo más encendidos cuanto más cerca
+    # de la ciudad (un foco suave que no depende de la animación).
+    base = "".join(
+        f'<circle cx="{f1(x)}" cy="{f1(y)}" r="{RADIO}" fill-opacity="'
+        f'{0.55 + 0.45 * max(0.0, 1 - math.hypot(x - ccx, y - ccy) / 520):.2f}"/>'
+        for x, y in puntos
+    )
+    lz.raw(f'<g mask="url(#mascara)"><g fill="{t["mapa"]}">{base}</g>')
 
-    # Estado de partida = el retrato completo. La intro (dispersión -> retrato)
-    # es una animación encima; donde no se anima (la app móvil de GitHub, una
-    # vista previa) el banner no se queda vacío.
-    dispersion = np.column_stack([rng.uniform(-80, ZW + 80, VIAJERAS), rng.uniform(-60, ZH + 60, VIAJERAS)])
+    # Capa de la onda: los mismos puntos en el color de acento, encendiéndose al
+    # paso de la onda. Solo los que la onda alcanza.
+    onda = []
+    for x, y in puntos:
+        d = math.hypot(x - ccx, y - ccy)
+        fuerza = max(0.0, 1 - d / ONDA_ALCANCE) ** 1.15
+        if fuerza < 0.04:
+            continue
+        inicio = d / ONDA_VELOCIDAD - 0.1 * ONDA_PERIODO
+        onda.append(
+            f'<circle cx="{f1(x)}" cy="{f1(y)}" r="{RADIO}" opacity="0">'
+            f'<animate attributeName="opacity" values="0;{fuerza:.2f};0" keyTimes="0;0.1;0.42" '
+            f'dur="{ONDA_PERIODO}s" begin="{inicio:.2f}s" repeatCount="indefinite"/></circle>'
+        )
+    lz.raw(f'<g fill="{t["acento"]}">{"".join(onda)}</g></g>')
 
-    # Tiempos clave del ciclo: quieta, viaja, quieta, viaja… y vuelta a empezar.
-    tiempos = [0.0]
-    for k in range(n_formas):
-        tiempos.append(k * (QUIETO + CAMBIO) + QUIETO)
-        tiempos.append((k + 1) * (QUIETO + CAMBIO))
-    key_times = ";".join(f"{x / ciclo:.4f}" for x in tiempos)
-    key_splines = ";".join(["0 0 1 1", "0.7 0 0.3 1"] * n_formas)
-
-    def valores(lista, fmt, ultimo=None):
-        seq = []
-        for k in range(n_formas):
-            seq += [fmt(lista[k]), fmt(lista[k])]
-        seq.append(fmt(lista[0] if ultimo is None else ultimo))
-        return ";".join(seq)
-
-    viajeras = []
-    for i in range(VIAJERAS):
-        trs = valores([posiciones[k][i] for k in range(n_formas)], lambda p: f"{f(p[0])} {f(p[1])}", vuelta_p[i])
-        rs = valores([radios[k][i] for k in range(n_formas)], f, vuelta_r[i])
-        d0 = dispersion[i]
-        p0 = posiciones[0][i]
-        viajeras.append(
-            f'<circle r="{f(radios[0][i])}" transform="translate({f(p0[0])} {f(p0[1])})">'
-            f'<animateTransform attributeName="transform" type="translate" dur="{INTRO}s" fill="freeze" '
-            f'values="{f(d0[0])} {f(d0[1])};{f(p0[0])} {f(p0[1])}" calcMode="spline" keyTimes="0;1" keySplines="0.2 0.7 0.2 1"/>'
-            f'<animate attributeName="r" dur="{INTRO}s" fill="freeze" values="0;{f(radios[0][i])}"/>'
-            f'<animateTransform attributeName="transform" type="translate" begin="{INTRO}s" dur="{ciclo}s" '
-            f'repeatCount="indefinite" values="{trs}" keyTimes="{key_times}" calcMode="spline" keySplines="{key_splines}"/>'
-            f'<animate attributeName="r" begin="{INTRO}s" dur="{ciclo}s" repeatCount="indefinite" '
-            f'values="{rs}" keyTimes="{key_times}" calcMode="spline" keySplines="{key_splines}"/>'
+    # La ciudad: un punto fijo y dos anillos que se expanden.
+    for k in range(2):
+        empieza = f"{k * ONDA_PERIODO / 4}s"
+        lz.raw(
+            f'<circle cx="{ccx}" cy="{ccy}" r="4" fill="none" stroke="{t["acento"]}" stroke-width="1.2" opacity="0">'
+            f'<animate attributeName="r" values="4;22" dur="{ONDA_PERIODO / 2}s" begin="{empieza}" repeatCount="indefinite"/>'
+            f'<animate attributeName="opacity" values="0.75;0" dur="{ONDA_PERIODO / 2}s" begin="{empieza}" repeatCount="indefinite"/>'
             f"</circle>"
         )
-    color_viajeras = valores(colores, str)
+    lz.raw(f'<circle cx="{ccx}" cy="{ccy}" r="5.5" fill="{t["fondo"]}"/>')
+    lz.raw(f'<circle cx="{ccx}" cy="{ccy}" r="3.4" fill="{t["acento"]}"/>')
+    lx, ly = ccx + 16, ccy - 14
+    lz.raw(f'<path d="M{ccx + 4} {ccy - 4}L{lx - 3} {ly + 4}" stroke="{t["suave"]}" stroke-width="1" opacity="0.6"/>')
+    lz.raw(lz.texto(lx, ly, perfil["ubicacion"]["ciudad"], "meta", "tinta", mayus=True))
+    lz.raw("</g>")
 
-    # Visibilidad de cada semitono estático (y de su rótulo) a lo largo del ciclo.
-    def visibilidad(k: int) -> tuple[str, str]:
-        llega = k * (QUIETO + CAMBIO)
-        se_va = llega + QUIETO
-        if k == 0:
-            pts = [(0, 1), (se_va, 1), (se_va + FUNDIDO, 0), (ciclo - FUNDIDO, 0), (ciclo, 1)]
-        else:
-            pts = [(0, 0), (llega - FUNDIDO, 0), (llega, 1), (se_va, 1), (se_va + FUNDIDO, 0), (ciclo, 0)]
-        return ";".join(str(v) for _, v in pts), ";".join(f"{x / ciclo:.4f}" for x, _ in pts)
+    # El texto.
+    x0 = 40
+    lz.raw(lz.texto(x0, 118, perfil["saludo"], "seccion", "acento", mayus=True))
+    lz.raw(lz.texto(x0 - 2, 172, perfil["nombre"], "nombre", "tinta"))
+    y = 206
+    for linea in envolver(perfil["titular"], "titular", 360):
+        lz.raw(lz.texto(x0, y, linea, "titular", "suave"))
+        y += 26
+    y += 18
+    for clave, texto in perfil["banner"]:
+        lz.raw(f'<g transform="translate({x0} {y - 12})" fill="none" stroke="{t["suave"]}" stroke-width="1.3" '
+               f'stroke-linecap="round" stroke-linejoin="round">{ICONOS[clave]}</g>')
+        lz.raw(lz.texto(x0 + 26, y, texto, "pequeno", "tinta"))
+        y += 26
 
-    estaticos, rotulos_svg, pasos = [], [], []
-    ancho_paso = 40
-    for k, ((pts, rad), color) in enumerate(zip(formas, colores)):
-        vals, kt = visibilidad(k)
-        anim = f'<animate attributeName="opacity" begin="{INTRO}s" dur="{ciclo}s" repeatCount="indefinite" values="{vals}" keyTimes="{kt}"/>'
-        intro = (
-            f'<animate attributeName="opacity" dur="{INTRO}s" fill="freeze" values="0;0;1" keyTimes="0;0.85;1"/>'
-            if k == 0 else ""
-        )
-        puntos = "".join(f'<circle cx="{f(x)}" cy="{f(y)}" r="{f(r)}"/>' for (x, y), r in zip(pts, rad))
-        de_partida = "1" if k == 0 else "0"
-        estaticos.append(f'<g fill="{color}" opacity="{de_partida}">{intro}{anim}{puntos}</g>')
-        rotulos_svg.append(
-            f'<text x="680" y="446" font-family="{MONO}" font-size="19" fill="{t["suave"]}" opacity="{de_partida}">'
-            f'{intro}{anim}<tspan fill="{t["acento"]}">›</tspan> {esc(rotulos[k])}</text>'
-        )
-        x = 680 + k * (ancho_paso + 6)
-        pasos.append(
-            f'<rect x="{x}" y="468" width="{ancho_paso}" height="4" rx="2" fill="{t["tenue"]}"/>'
-            f'<rect x="{x}" y="468" width="{ancho_paso}" height="4" rx="2" fill="{t["acento"]}" opacity="{de_partida}">{intro}{anim}</rect>'
-        )
-
-    nombre = esc(perfil["nombre"])
-    linea = esc(perfil["linea"])
-    lugar = esc(perfil["lugar"])
-    usuario = esc(perfil["usuario"].lower())
-
-    return f"""<svg xmlns="http://www.w3.org/2000/svg" width="{W}" height="{H}" viewBox="0 0 {W} {H}" role="img" aria-labelledby="titulo desc">
-<title id="titulo">{nombre} — {linea}</title>
-<desc id="desc">Retrato en semitono que se recompone en el nombre y en los logos de su stack.</desc>
-<defs>
-<clipPath id="marco"><rect x="0.5" y="0.5" width="{W - 1}" height="{H - 1}" rx="18"/></clipPath>
-<radialGradient id="halo" cx="0.5" cy="0.55" r="0.5"><stop offset="0" stop-color="{t["acento"]}" stop-opacity="0.10"/><stop offset="1" stop-color="{t["acento"]}" stop-opacity="0"/></radialGradient>
-<pattern id="reticula" width="32" height="32" patternUnits="userSpaceOnUse"><path d="M32 0H0V32" fill="none" stroke="{t["linea"]}" stroke-width="1" opacity="0.55"/></pattern>
-<linearGradient id="desvanecer" x1="0" x2="1"><stop offset="0" stop-color="#fff" stop-opacity="0.9"/><stop offset="0.5" stop-color="#fff" stop-opacity="0.25"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>
-<mask id="mascara"><rect width="{W}" height="{H}" fill="url(#desvanecer)"/></mask>
-</defs>
-<g clip-path="url(#marco)">
-<rect width="{W}" height="{H}" fill="{t["fondo"]}"/>
-<rect width="{W}" height="{H}" fill="url(#reticula)" mask="url(#mascara)"/>
-<ellipse cx="{ZX + ZW / 2}" cy="{ZY + ZH / 2 + 20}" rx="300" ry="280" fill="url(#halo)"/>
-<g transform="translate({ZX} {ZY})">
-{"".join(estaticos)}
-<g fill="{t["tinta"]}"><animate attributeName="fill" begin="{INTRO}s" dur="{ciclo}s" repeatCount="indefinite" values="{color_viajeras}" keyTimes="{key_times}" calcMode="discrete"/>{"".join(viajeras)}</g>
-</g>
-<line x1="600" y1="64" x2="600" y2="476" stroke="{t["linea"]}"/>
-</g>
-<text x="680" y="132" font-family="{MONO}" font-size="17" letter-spacing="4" fill="{t["suave"]}">HOLA, SOY</text>
-<text x="676" y="206" font-family="{SANS}" font-size="68" font-weight="700" letter-spacing="-2" fill="{t["tinta"]}">{nombre}</text>
-<text x="680" y="252" font-family="{SANS}" font-size="28" fill="{t["suave"]}">{linea}</text>
-<g font-family="{MONO}" font-size="19" fill="{t["suave"]}">
-<text x="680" y="324"><tspan fill="{t["tenue"]}">@</tspan> {usuario}</text>
-<text x="680" y="360"><tspan fill="{t["tenue"]}">◎</tspan> {lugar}</text>
-</g>
-{"".join(rotulos_svg)}
-{"".join(pasos)}
-<rect x="0.5" y="0.5" width="{W - 1}" height="{H - 1}" rx="18" fill="none" stroke="{t["linea"]}"/>
-</svg>
-"""
+    lz.raw(f'<rect x="0.5" y="0.5" width="{ANCHO - 1}" height="{ALTO - 1}" rx="12" fill="none" stroke="{t["linea"]}"/>')
+    return lz.render()
 
 
 def main() -> None:
     perfil = datos()
-    guardar("banner", {tema: construir(tema, perfil) for tema in TEMAS})
-    for tema in TEMAS:
-        tam = (ASSETS / f"banner-{tema}.svg").stat().st_size
-        print(f"banner-{tema}.svg  {tam / 1024:.0f} KB")
+    puntos, ciudad = puntos_del_mapa(perfil)
+    guardar("banner", {tema: construir(tema, perfil, puntos, ciudad) for tema in TEMAS})
+    print(f"banner: {len(puntos)} puntos de tierra")
 
 
 if __name__ == "__main__":

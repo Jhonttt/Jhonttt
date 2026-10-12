@@ -1,85 +1,243 @@
 {
-  "_comentario": "Fuente de todo el perfil. Cambia algo aquí y el workflow 'Perfil' vuelve a dibujar las tarjetas.",
+  "_comentario": "Fuente de todo el perfil. Cambia algo aquí y el workflow 'Perfil' vuelve a dibujarlo. Todo sale de LinkedIn; nada inventado.",
   "usuario": "Jhonttt",
   "nombre": "Juan Atahona",
-  "linea": "Estudiante de 2º de DAM",
-  "lugar": "España",
-  "ficha": [
+  "saludo": "Hola, soy",
+  "titular": "Estudiante de 2.º de Desarrollo de Aplicaciones Multiplataforma",
+  "ubicacion": {
+    "texto": "Collado Villalba, Comunidad de Madrid",
+    "ciudad": "Collado Villalba",
+    "lat": 40.6347,
+    "lon": -4.0083
+  },
+  "banner": [
     [
-      "estudio",
-      "2º de Desarrollo de Aplicaciones Multiplataforma"
+      "lugar",
+      "Collado Villalba, Madrid"
     ],
     [
-      "desde",
-      "España · Europe/Madrid"
+      "estudios",
+      "IES Lázaro Cárdenas"
     ],
     [
-      "ahora",
-      "un juego de Pokémon para el navegador"
-    ],
-    [
-      "me gusta",
-      "entender cómo funcionan las cosas por dentro"
-    ],
-    [
-      "aprendiendo",
-      "arquitectura, bases de datos y animación web"
+      "idiomas",
+      "Español · Inglés"
     ]
   ],
-  "stack": [
+  "sobre_mi": {
+    "texto": [
+      "Terminé el ciclo de Desarrollo de Aplicaciones Web y ahora curso 2.º de Desarrollo de Aplicaciones Multiplataforma en el IES Lázaro Cárdenas. Me interesa sobre todo el desarrollo full stack: disfruto aprendiendo tecnologías nuevas y poniéndolas en práctica en proyectos propios.",
+      "Tengo curiosidad por entender cómo funcionan las cosas, aprender por mi cuenta y seguir mejorando con cada proyecto."
+    ],
+    "datos": [
+      [
+        "vivo en",
+        "Collado Villalba, Comunidad de Madrid"
+      ],
+      [
+        "ahora",
+        "2.º de DAM · IES Lázaro Cárdenas"
+      ],
+      [
+        "titulación",
+        "Técnico Superior en Desarrollo de Aplicaciones Web"
+      ],
+      [
+        "idiomas",
+        "Español, nativo · Inglés, profesional básico"
+      ]
+    ]
+  },
+  "trayectoria": [
     {
-      "grupo": "lenguajes",
-      "iconos": [
-        "typescript",
-        "javascript",
-        "openjdk",
-        "php"
+      "desde": "2026-09",
+      "solo_anio": true,
+      "hasta": null,
+      "fin_previsto": "2027-06",
+      "tipo": "estudios",
+      "titulo": "Desarrollo de Aplicaciones Multiplataforma",
+      "lugar": "IES Lázaro Cárdenas · 2.º curso",
+      "texto": "Ciclo Formativo de Grado Superior, el que curso ahora, después de terminar el de Desarrollo de Aplicaciones Web."
+    },
+    {
+      "desde": "2026-03",
+      "hasta": "2026-06",
+      "tipo": "empresa",
+      "titulo": "Becario de desarrollo web",
+      "lugar": "Alebat · Collado Villalba",
+      "texto": "500 horas de formación en empresa. Resolví issues en proyectos reales de la empresa, con ramas y pull requests revisadas antes de integrar, GitHub Projects, Conventional Commits, Husky, ESLint y Prettier.",
+      "etiquetas": [
+        "Vue",
+        "Nuxt",
+        "Strapi",
+        "Tailwind CSS",
+        "TypeScript",
+        "SCSS"
       ]
     },
     {
-      "grupo": "interfaz",
-      "iconos": [
-        "react",
-        "nextdotjs",
-        "vuedotjs",
-        "nuxtdotjs",
-        "angular",
-        "tailwindcss"
-      ]
-    },
-    {
-      "grupo": "servidor",
-      "iconos": [
-        "nodedotjs",
-        "express",
-        "laravel"
-      ]
-    },
-    {
-      "grupo": "datos",
-      "iconos": [
-        "mysql",
-        "postgresql",
-        "mongodb"
-      ]
-    },
-    {
-      "grupo": "día a día",
-      "iconos": [
-        "git",
-        "github",
-        "githubactions",
-        "vercel",
-        "figma"
+      "desde": "2024-09",
+      "hasta": "2026-06",
+      "tipo": "estudios",
+      "titulo": "Desarrollo de Aplicaciones Web",
+      "lugar": "IES Lázaro Cárdenas · Grado Superior",
+      "texto": "Formación full stack: programación, bases de datos, desarrollo en entorno cliente y servidor, diseño de interfaces, despliegue, sistemas informáticos y arquitecturas en la nube. Participé en concursos de emprendimiento y presentación de proyectos, con el desarrollo y la exposición de un proyecto realizado en IPE.",
+      "etiquetas": [
+        "Nota final 9,29 / 10",
+        "Matrícula de Honor"
       ]
     }
   ],
-  "transformaciones": [
-    "retrato",
-    "nombre",
-    "typescript",
-    "react",
-    "vuedotjs"
+  "leyenda_empresa": "usado en Alebat",
+  "stack": [
+    {
+      "grupo": "lenguajes",
+      "items": [
+        {
+          "nombre": "Java",
+          "icono": "openjdk"
+        },
+        {
+          "nombre": "JavaScript",
+          "icono": "javascript",
+          "empresa": true
+        },
+        {
+          "nombre": "TypeScript",
+          "icono": "typescript",
+          "empresa": true
+        },
+        {
+          "nombre": "PHP",
+          "icono": "php"
+        },
+        {
+          "nombre": "SQL",
+          "icono": "sql"
+        }
+      ]
+    },
+    {
+      "grupo": "frontend",
+      "items": [
+        {
+          "nombre": "Vue",
+          "icono": "vuedotjs",
+          "empresa": true
+        },
+        {
+          "nombre": "Nuxt",
+          "icono": "nuxtdotjs",
+          "empresa": true
+        },
+        {
+          "nombre": "React",
+          "icono": "react"
+        },
+        {
+          "nombre": "Angular",
+          "icono": "angular"
+        },
+        {
+          "nombre": "Tailwind CSS",
+          "icono": "tailwindcss",
+          "empresa": true
+        },
+        {
+          "nombre": "HTML",
+          "icono": "html5",
+          "empresa": true
+        },
+        {
+          "nombre": "CSS / SCSS",
+          "icono": "sass",
+          "empresa": true
+        }
+      ]
+    },
+    {
+      "grupo": "backend y datos",
+      "items": [
+        {
+          "nombre": "Node.js",
+          "icono": "nodedotjs"
+        },
+        {
+          "nombre": "Express",
+          "icono": "express"
+        },
+        {
+          "nombre": "Laravel",
+          "icono": "laravel"
+        },
+        {
+          "nombre": "Strapi",
+          "icono": "strapi",
+          "empresa": true
+        },
+        {
+          "nombre": "MySQL",
+          "icono": "mysql"
+        }
+      ]
+    },
+    {
+      "grupo": "herramientas",
+      "items": [
+        {
+          "nombre": "Git",
+          "icono": "git",
+          "empresa": true
+        },
+        {
+          "nombre": "GitHub",
+          "icono": "github",
+          "empresa": true
+        },
+        {
+          "nombre": "Vite",
+          "icono": "vite"
+        },
+        {
+          "nombre": "Figma",
+          "icono": "figma"
+        },
+        {
+          "nombre": "Postman",
+          "icono": "postman"
+        }
+      ]
+    },
+    {
+      "grupo": "flujo de trabajo",
+      "items": [
+        {
+          "nombre": "GitHub Projects",
+          "icono": "githubprojects",
+          "empresa": true
+        },
+        {
+          "nombre": "Conventional Commits",
+          "icono": "conventionalcommits",
+          "empresa": true
+        },
+        {
+          "nombre": "Husky",
+          "icono": "husky",
+          "empresa": true
+        },
+        {
+          "nombre": "ESLint",
+          "icono": "eslint",
+          "empresa": true
+        },
+        {
+          "nombre": "Prettier",
+          "icono": "prettier",
+          "empresa": true
+        }
+      ]
+    }
   ],
   "contacto": {
     "web": "https://juanatahona.dev",

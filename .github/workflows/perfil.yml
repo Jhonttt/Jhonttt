@@ -1,13 +1,10 @@
 # Vuelve a dibujar el perfil.
 #
 # - Cada día, para que el calendario y los lenguajes estén al día.
-# - Al cambiar datos/perfil.json, los scripts o la foto, para que el cambio
+# - Al cambiar datos/perfil.json, los scripts o las fuentes, para que el cambio
 #   se vea sin tener que generar nada a mano.
 #
-# Con el GITHUB_TOKEN de Actions solo se ven los repositorios públicos. Para
-# contar también los privados en "En qué escribo": crea un token personal con
-# permiso de lectura de repositorios, guárdalo como secreto PERFIL_TOKEN y pon
-# "lenguajes_privados": true en datos/perfil.json.
+# Los lenguajes salen solo de los repositorios PÚBLICOS, a propósito.
 name: Perfil
 
 on:
@@ -41,17 +38,17 @@ jobs:
           cache: pip
           cache-dependency-path: scripts/requirements.txt
 
-      - name: Dependencias del banner
+      - name: Dependencias
         run: pip install -r scripts/requirements.txt
 
-      - name: Ficha, stack y botones
+      - name: Sobre mí, trayectoria, stack y contacto
         working-directory: scripts
         run: python ficha.py
 
-      - name: Actividad y lenguajes
+      - name: Actividad
         working-directory: scripts
         env:
-          GITHUB_TOKEN: ${{ secrets.PERFIL_TOKEN || secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: python actividad.py
 
       - name: Banner
