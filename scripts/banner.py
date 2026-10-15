@@ -13,6 +13,9 @@ El mapa se construye de cero:
      proporcional a su distancia a la ciudad: eso es la onda. Todos comparten
      los mismos valores; solo cambia cuándo empiezan.
 
+En móvil (ANCHO_MOVIL) el mapa ocupa la parte de arriba y el texto va debajo,
+en vez de a su izquierda.
+
 Uso: python scripts/banner.py
 """
 
@@ -24,15 +27,17 @@ import math
 import numpy as np
 from PIL import Image, ImageDraw
 
-from comun import ANCHO, FUENTES, TEMAS, Lienzo, datos, envolver, f1, guardar
+from comun import ANCHO, ANCHO_MOVIL, FUENTES, TEMAS, Lienzo, datos, envolver, f1, guardar
 
-ALTO = 380
 PASO = 8.0            # separación de la retícula de puntos, en px
 RADIO = 1.55          # radio de cada punto
-ESCALA_MAPA = 172.0   # px por unidad de Equal Earth (el mundo mide ~5.4 x 2.6)
-CIUDAD_X = 652        # dónde cae la ciudad en el banner
-CIUDAD_Y = 150
 LAT_MIN = -58         # fuera la Antártida
+
+# La composición de cada versión: tamaño, escala del mapa (px por unidad de
+# Equal Earth; el mundo mide ~5.4 x 2.6), dónde cae la ciudad y dónde empieza
+# el texto. El alto de la de móvil depende de cuántas líneas ocupe el texto.
+ESCRITORIO = {"ancho": ANCHO, "alto": 380, "escala": 172.0, "ciudad": (652, 150), "texto": (40, 118)}
+MOVIL = {"ancho": ANCHO_MOVIL, "escala": 120.0, "ciudad": (262, 96), "texto": (28, 236)}
 
 ONDA_PERIODO = 5.2    # s entre una onda y la siguiente
 ONDA_VELOCIDAD = 165  # px/s
@@ -96,17 +101,19 @@ def anillos_de_tierra() -> list[list[np.ndarray]]:
     return poligonos
 
 
-def puntos_del_mapa(perfil: dict) -> tuple[np.ndarray, tuple[float, float]]:
-    """Centros de los puntos de tierra en coordenadas del banner, y la posición de la ciudad."""
+def puntos_del_mapa(perfil: dict, geo: dict) -> np.ndarray:
+    """Centros de los puntos de tierra en coordenadas del banner."""
     lugar = perfil["ubicacion"]
     cx, cy = equal_earth(np.array([lugar["lon"]]), np.array([lugar["lat"]]))
+    ANCHO, ALTO = geo["ancho"], geo["alto"]
+    (CIUDAD_X, CIUDAD_Y), ESCALA_MAPA = geo["ciudad"], geo["escala"]
 
     def a_banner(x, y):
         # Del espacio de la proyección al del banner: la ciudad cae en (CIUDAD_X, CIUDAD_Y).
         return CIUDAD_X + (x - cx[0]) * ESCALA_MAPA, CIUDAD_Y - (y - cy[0]) * ESCALA_MAPA
 
     sobre = 4  # sobremuestreo del rasterizado
-    lienzo = Image.new("L", (ANCHO * sobre, ALTO * sobre), 0)
+    lienzo = Image.new("L", (int(ANCHO * sobre), int(ALTO * sobre)), 0)
     dibujo = ImageDraw.Draw(lienzo)
     for anillos in anillos_de_tierra():
         for k, r in enumerate(anillos):
@@ -124,31 +131,53 @@ def puntos_del_mapa(perfil: dict) -> tuple[np.ndarray, tuple[float, float]]:
             celda = tierra[y0:y0 + lado, x0:x0 + lado]
             if celda.size and celda.mean() > 0.22:
                 puntos.append((x, y))
-    return np.array(puntos), (CIUDAD_X, CIUDAD_Y)
+    return np.array(puntos)
 
 
 # --- SVG -------------------------------------------------------------------
 
-def construir(tema: str, perfil: dict, puntos: np.ndarray, ciudad: tuple[float, float]) -> str:
+def alto_movil(perfil: dict) -> float:
+    """El alto de la versión de móvil: lo que ocupe el texto bajo el mapa."""
+    x0, y0 = MOVIL["texto"]
+    lineas = envolver(perfil["titular"], "titular", MOVIL["ancho"] - 2 * x0)
+    return y0 + 88 + len(lineas) * 26 + 18 + len(perfil["banner"]) * 26 + 10
+
+
+def construir(tema: str, perfil: dict, puntos: np.ndarray, geo: dict) -> str:
     t = TEMAS[tema]
+    ANCHO, ALTO = geo["ancho"], geo["alto"]
+    movil = ANCHO < ESCRITORIO["ancho"]
     lz = Lienzo(ANCHO, ALTO, tema, f"{perfil['nombre']} — {perfil['titular']}",
                 f"{perfil['nombre']}. {perfil['titular']}. {perfil['ubicacion']['texto']}.")
-    ccx, ccy = ciudad
+    ccx, ccy = geo["ciudad"]
+    # El mapa se apaga donde va el texto, para que respire: en escritorio hacia
+    # la izquierda y en móvil hacia abajo.
+    if movil:
+        fundido = (
+            '<linearGradient id="fundido" x1="0" x2="0" y1="0" y2="1">'
+            '<stop offset="0" stop-color="#fff" stop-opacity="1"/>'
+            '<stop offset="0.3" stop-color="#fff" stop-opacity="1"/>'
+            '<stop offset="0.52" stop-color="#fff" stop-opacity="0.16"/>'
+            '<stop offset="1" stop-color="#fff" stop-opacity="0.06"/></linearGradient>'
+        )
+    else:
+        fundido = (
+            '<linearGradient id="fundido" x1="0" x2="1" y1="0" y2="0">'
+            '<stop offset="0" stop-color="#fff" stop-opacity="0.14"/>'
+            '<stop offset="0.38" stop-color="#fff" stop-opacity="0.3"/>'
+            '<stop offset="0.62" stop-color="#fff" stop-opacity="1"/>'
+            '<stop offset="1" stop-color="#fff" stop-opacity="1"/></linearGradient>'
+        )
 
     lz.defs_raw(
         f'<clipPath id="marco"><rect x="0.5" y="0.5" width="{ANCHO - 1}" height="{ALTO - 1}" rx="12"/></clipPath>'
-        # El mapa se apaga hacia la izquierda para que el texto respire, y en los bordes.
-        '<linearGradient id="fundido" x1="0" x2="1" y1="0" y2="0">'
-        '<stop offset="0" stop-color="#fff" stop-opacity="0.14"/>'
-        '<stop offset="0.38" stop-color="#fff" stop-opacity="0.3"/>'
-        '<stop offset="0.62" stop-color="#fff" stop-opacity="1"/>'
-        '<stop offset="1" stop-color="#fff" stop-opacity="1"/></linearGradient>'
+        f"{fundido}"
         '<linearGradient id="fundido-v" x1="0" x2="0" y1="0" y2="1">'
         '<stop offset="0" stop-color="#000" stop-opacity="0.85"/><stop offset="0.16" stop-color="#000" stop-opacity="0"/>'
         '<stop offset="0.84" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity="0.85"/></linearGradient>'
         f'<mask id="mascara"><rect width="{ANCHO}" height="{ALTO}" fill="url(#fundido)"/>'
         f'<rect width="{ANCHO}" height="{ALTO}" fill="url(#fundido-v)"/></mask>'
-        f'<radialGradient id="halo" cx="{ccx / ANCHO:.3f}" cy="{ccy / ALTO:.3f}" r="0.42">'
+        f'<radialGradient id="halo" cx="{ccx / ANCHO:.3f}" cy="{ccy / ALTO:.3f}" r="{0.6 if movil else 0.42}">'
         f'<stop offset="0" stop-color="{t["acento"]}" stop-opacity="0.16"/>'
         f'<stop offset="1" stop-color="{t["acento"]}" stop-opacity="0"/></radialGradient>'
     )
@@ -199,11 +228,11 @@ def construir(tema: str, perfil: dict, puntos: np.ndarray, ciudad: tuple[float, 
     lz.raw("</g>")
 
     # El texto.
-    x0 = 40
-    lz.raw(lz.texto(x0, 118, perfil["saludo"], "seccion", "acento", mayus=True))
-    lz.raw(lz.texto(x0 - 2, 172, perfil["nombre"], "nombre", "tinta"))
-    y = 206
-    for linea in envolver(perfil["titular"], "titular", 360):
+    x0, y0 = geo["texto"]
+    lz.raw(lz.texto(x0, y0, perfil["saludo"], "seccion", "acento", mayus=True))
+    lz.raw(lz.texto(x0 - 2, y0 + 54, perfil["nombre"], "nombre", "tinta"))
+    y = y0 + 88
+    for linea in envolver(perfil["titular"], "titular", ANCHO - 2 * x0 if movil else 360):
         lz.raw(lz.texto(x0, y, linea, "titular", "suave"))
         y += 26
     y += 18
@@ -219,9 +248,10 @@ def construir(tema: str, perfil: dict, puntos: np.ndarray, ciudad: tuple[float, 
 
 def main() -> None:
     perfil = datos()
-    puntos, ciudad = puntos_del_mapa(perfil)
-    guardar("banner", {tema: construir(tema, perfil, puntos, ciudad) for tema in TEMAS})
-    print(f"banner: {len(puntos)} puntos de tierra")
+    for nombre, geo in (("banner", ESCRITORIO), ("banner-movil", {**MOVIL, "alto": alto_movil(perfil)})):
+        puntos = puntos_del_mapa(perfil, geo)
+        guardar(nombre, {tema: construir(tema, perfil, puntos, geo) for tema in TEMAS})
+        print(f"{nombre}: {len(puntos)} puntos de tierra")
 
 
 if __name__ == "__main__":

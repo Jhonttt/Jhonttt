@@ -1,2 +1,4 @@
 .venv/
 __pycache__/
+# Los SVG generados se publican en la rama `salida`, no en main.
+assets/*.svg

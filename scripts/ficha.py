@@ -8,6 +8,9 @@
 - La barra de contacto: tres segmentos que se colocan uno junto a otro bajo
   la cabecera y se leen como una sola pieza.
 
+Cada pieza sale en dos anchos: el de escritorio y el de móvil (ANCHO_MOVIL en
+comun.py), que lo pone todo en una sola columna.
+
 Uso: python scripts/ficha.py
 """
 
@@ -15,7 +18,7 @@ from __future__ import annotations
 
 import datetime as dt
 
-from comun import ANCHO, TEMAS, Lienzo, datos, envolver, f1, guardar, icono, medir, tarjeta
+from comun import Lienzo, datos, envolver, es_movil, f1, guardar_versiones, icono, medir, tarjeta
 
 X = 28  # margen lateral de todas las tarjetas
 MESES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"]
@@ -35,35 +38,46 @@ ICONOS_CONTACTO = {
 
 
 def separador(lz: Lienzo, y: float) -> None:
-    lz.raw(f'<line x1="{X}" y1="{f1(y)}" x2="{ANCHO - X}" y2="{f1(y)}" stroke="{lz.t["linea"]}" stroke-dasharray="2 4"/>')
+    lz.raw(f'<line x1="{X}" y1="{f1(y)}" x2="{lz.ancho - X}" y2="{f1(y)}" stroke="{lz.t["linea"]}" stroke-dasharray="2 4"/>')
 
 
 # --- 01 Sobre mí -------------------------------------------------------------
 
-def sobre_mi(tema: str, perfil: dict) -> str:
+def sobre_mi(tema: str, perfil: dict, ancho: float) -> str:
     bloque = perfil["sobre_mi"]
-    col_texto = 474
-    x_datos = 548
-    ancho_datos = ANCHO - X - x_datos
+    movil = es_movil(ancho)
+    # En escritorio, los datos van en una columna a la derecha; en móvil, debajo.
+    col_texto = ancho - 2 * X if movil else 474
+    x_datos = X if movil else 548
+    ancho_datos = ancho - X - x_datos
+    paso = 24 if movil else 25
 
     # Primero se mide todo, para saber la altura de la tarjeta.
     parrafos = [envolver(p, "cuerpo", col_texto) for p in bloque["texto"]]
-    alto_texto = sum(len(p) * 25 for p in parrafos) + (len(parrafos) - 1) * 12
+    alto_texto = sum(len(p) * paso for p in parrafos) + (len(parrafos) - 1) * 12
     datos_env = [(k, envolver(v, "pequeno-fuerte", ancho_datos)) for k, v in bloque["datos"]]
     alto_datos = sum(22 + len(v) * 18 + 16 for _, v in datos_env) - 16
-    alto = 56 + 34 + max(alto_texto, alto_datos) + 34
+    if movil:
+        alto = 56 + 34 + alto_texto + 44 + alto_datos + 30
+    else:
+        alto = 56 + 34 + max(alto_texto, alto_datos) + 34
 
-    lz = Lienzo(ANCHO, alto, tema, "Sobre mí", " ".join(bloque["texto"]))
+    lz = Lienzo(ancho, alto, tema, "Sobre mí", " ".join(bloque["texto"]))
     tarjeta(lz, "01", "Sobre mí")
     y = 56 + 34 + 12
     for i, lineas in enumerate(parrafos):
         for linea in lineas:
             lz.raw(lz.texto(X, y, linea, "cuerpo", "tinta" if i == 0 else "suave"))
-            y += 25
+            y += paso
         y += 12
 
-    lz.raw(f'<line x1="{x_datos - 26}.5" y1="{56 + 30}" x2="{x_datos - 26}.5" y2="{alto - 30}" stroke="{lz.t["linea"]}"/>')
-    y = 56 + 34 + 8
+    if movil:
+        y_linea = 56 + 34 + alto_texto + 18.5
+        lz.raw(f'<line x1="{X}" y1="{f1(y_linea)}" x2="{ancho - X}" y2="{f1(y_linea)}" stroke="{lz.t["linea"]}"/>')
+        y = y_linea + 30
+    else:
+        lz.raw(f'<line x1="{x_datos - 26}.5" y1="{56 + 30}" x2="{x_datos - 26}.5" y2="{alto - 30}" stroke="{lz.t["linea"]}"/>')
+        y = 56 + 34 + 8
     for clave, lineas in datos_env:
         lz.raw(lz.texto(x_datos, y, clave, "mono-pequeno", "suave", mayus=True))
         y += 20
@@ -97,18 +111,87 @@ def _rango(etapa: dict) -> str:
     return f"{ini} — {MESES[h.month - 1]} {h.year}"
 
 
-def trayectoria(tema: str, perfil: dict) -> str:
-    etapas = perfil["trayectoria"]
+def _eje(lz: Lienzo, eje_x0: float, eje_x1: float, y_anios: float, y0: float, y1: float, y_hoy: float):
+    """Dibuja el eje de tiempo (una línea por año y la marca de hoy) y devuelve
+    la función que pasa de una fecha a su x."""
+    t = lz.t
     hoy = dt.date.today().replace(day=1)
     t_ini = dt.date(2024, 7, 1)
     t_fin = dt.date(hoy.year + 1, 7, 1)
-    eje_x0, eje_x1 = 604, ANCHO - X - 4
     meses_totales = (t_fin.year - t_ini.year) * 12 + t_fin.month - t_ini.month
 
     def x_de(fecha: dt.date) -> float:
         meses = (fecha.year - t_ini.year) * 12 + fecha.month - t_ini.month + (fecha.day - 1) / 30
         return eje_x0 + (eje_x1 - eje_x0) * meses / meses_totales
 
+    for anio in range(t_ini.year + 1, t_fin.year + 1):
+        x = x_de(dt.date(anio, 1, 1))
+        lz.raw(f'<line x1="{f1(x)}" y1="{y0}" x2="{f1(x)}" y2="{f1(y1)}" stroke="{t["rejilla"]}" stroke-width="1"/>')
+        lz.raw(lz.texto(x, y_anios, str(anio), "mono-pequeno", "suave", anchor="middle"))
+    xh = x_de(dt.date.today())
+    lz.raw(f'<line x1="{f1(xh)}" y1="{y0 + 18}" x2="{f1(xh)}" y2="{f1(y1)}" stroke="{t["acento"]}" stroke-width="1" stroke-dasharray="2 3" opacity="0.7"/>')
+    lz.raw(lz.texto(xh, y_hoy, "hoy", "mono-pequeno", "acento", anchor="middle"))
+    return x_de, hoy
+
+
+def _barra(lz: Lienzo, i: int, etapa: dict, x_de, hoy: dt.date, yb: float) -> None:
+    """La barra de una etapa en el eje; la actual, con degradado y pulso."""
+    t = lz.t
+    x0 = x_de(_mes(etapa["desde"], hoy))
+    if not etapa.get("hasta"):
+        x1 = x_de(dt.date.today())
+        lz.defs_raw(
+            f'<linearGradient id="viva{i}" x1="0" x2="1"><stop offset="0" stop-color="{t["acento2"]}"/>'
+            f'<stop offset="1" stop-color="{t["acento"]}"/></linearGradient>'
+        )
+        fin = etapa.get("fin_previsto")
+        if fin:
+            xf = x_de(_mes(fin, hoy))
+            lz.raw(f'<line x1="{f1(x1)}" y1="{yb + 3}" x2="{f1(xf)}" y2="{yb + 3}" stroke="{t["acento"]}" stroke-width="2" stroke-dasharray="2 4" opacity="0.55"/>')
+        lz.raw(f'<rect x="{f1(x0)}" y="{yb}" width="{f1(max(x1 - x0, 6))}" height="6" rx="3" fill="url(#viva{i})"/>')
+        lz.raw(
+            f'<circle cx="{f1(x1)}" cy="{yb + 3}" r="3" fill="none" stroke="{t["acento"]}" stroke-width="1.2">'
+            f'<animate attributeName="r" values="3;10" dur="2.4s" repeatCount="indefinite"/>'
+            f'<animate attributeName="opacity" values="0.8;0" dur="2.4s" repeatCount="indefinite"/></circle>'
+            f'<circle cx="{f1(x1)}" cy="{yb + 3}" r="3.5" fill="{t["acento"]}"/>'
+        )
+    else:
+        x1 = x_de(_mes(etapa["hasta"], hoy).replace(day=28))
+        color = t["tinta"] if etapa["tipo"] != "estudios" else t["suave"]
+        lz.raw(f'<rect x="{f1(x0)}" y="{yb}" width="{f1(max(x1 - x0, 6))}" height="6" rx="3" fill="{color}" opacity="0.85"/>')
+
+
+def _filas_etiquetas(etiquetas: list[str], ancho_max: float) -> list[list[str]]:
+    """Reparte las etiquetas en las líneas que hagan falta."""
+    filas: list[list[str]] = [[]]
+    x = 0.0
+    for etiqueta in etiquetas:
+        w = medir(etiqueta, "mono-pequeno") + 16
+        if filas[-1] and x + w > ancho_max:
+            filas.append([])
+            x = 0.0
+        filas[-1].append(etiqueta)
+        x += w + 6
+    return filas
+
+
+def _etiquetas(lz: Lienzo, x0: float, yy: float, filas: list[list[str]]) -> None:
+    t = lz.t
+    for fila in filas:
+        x = x0
+        for etiqueta in fila:
+            w = medir(etiqueta, "mono-pequeno") + 16
+            lz.raw(f'<rect x="{f1(x)}" y="{f1(yy - 6)}" width="{f1(w)}" height="22" rx="6" fill="{t["panel"]}" stroke="{t["linea"]}"/>')
+            lz.raw(lz.texto(x + 8, yy + 9, etiqueta, "mono-pequeno", "suave"))
+            x += w + 6
+        yy += 28
+
+
+def trayectoria(tema: str, perfil: dict, ancho: float) -> str:
+    if es_movil(ancho):
+        return _trayectoria_movil(tema, perfil, ancho)
+    etapas = perfil["trayectoria"]
+    eje_x0, eje_x1 = 604, ancho - X - 4
     col_texto = 196
     ancho_texto = eje_x0 - col_texto - 34
 
@@ -116,27 +199,19 @@ def trayectoria(tema: str, perfil: dict) -> str:
     filas = []
     for etapa in etapas:
         lineas = envolver(etapa["texto"], "pequeno", ancho_texto)
-        alto = 18 + 20 + 10 + len(lineas) * 19 + (34 if etapa.get("etiquetas") else 0)
-        filas.append((etapa, lineas, alto))
+        etiquetas = _filas_etiquetas(etapa.get("etiquetas", []), ancho_texto)
+        alto = 18 + 20 + 10 + len(lineas) * 19 + (34 + 28 * (len(etiquetas) - 1) if etapa.get("etiquetas") else 0)
+        filas.append((etapa, lineas, etiquetas, alto))
     y_filas = 56 + 50
-    alto = y_filas + sum(a + 38 for _, _, a in filas) - 38 + 44
+    alto = y_filas + sum(a + 38 for *_, a in filas) - 38 + 44
 
-    lz = Lienzo(ANCHO, alto, tema, "Trayectoria",
+    lz = Lienzo(ancho, alto, tema, "Trayectoria",
                 "; ".join(f"{e['titulo']}, {e['lugar']} ({_rango(e)})" for e in etapas))
-    t = lz.t
     tarjeta(lz, "02", "Trayectoria")
-
-    # El eje: una línea por año y la marca de hoy.
-    for anio in range(t_ini.year + 1, t_fin.year + 1):
-        x = x_de(dt.date(anio, 1, 1))
-        lz.raw(f'<line x1="{f1(x)}" y1="78" x2="{f1(x)}" y2="{alto - 40}" stroke="{t["rejilla"]}" stroke-width="1"/>')
-        lz.raw(lz.texto(x, 86, str(anio), "mono-pequeno", "suave", anchor="middle"))
-    xh = x_de(dt.date.today())
-    lz.raw(f'<line x1="{f1(xh)}" y1="96" x2="{f1(xh)}" y2="{alto - 40}" stroke="{t["acento"]}" stroke-width="1" stroke-dasharray="2 3" opacity="0.7"/>')
-    lz.raw(lz.texto(xh, alto - 24, "hoy", "mono-pequeno", "acento", anchor="middle"))
+    x_de, hoy = _eje(lz, eje_x0, eje_x1, 86, 78, alto - 40, alto - 24)
 
     y = y_filas
-    for i, (etapa, lineas, alto_fila) in enumerate(filas):
+    for i, (etapa, lineas, etiquetas, alto_fila) in enumerate(filas):
         actual = not etapa.get("hasta")
         lz.raw(lz.texto(X, y + 16, _rango(etapa), "etiqueta", "tinta" if actual else "suave"))
         lz.raw(lz.texto(X, y + 36, etapa["tipo"], "mono-pequeno", "acento" if actual else "suave", mayus=True))
@@ -148,39 +223,58 @@ def trayectoria(tema: str, perfil: dict) -> str:
             lz.raw(lz.texto(col_texto, yy, linea, "pequeno", "tinta"))
             yy += 19
         if etapa.get("etiquetas"):
-            x = col_texto
-            yy += 2
-            for etiqueta in etapa["etiquetas"]:
-                w = medir(etiqueta, "mono-pequeno") + 16
-                lz.raw(f'<rect x="{f1(x)}" y="{f1(yy - 6)}" width="{f1(w)}" height="22" rx="6" fill="{t["panel"]}" stroke="{t["linea"]}"/>')
-                lz.raw(lz.texto(x + 8, yy + 9, etiqueta, "mono-pequeno", "suave"))
-                x += w + 6
+            _etiquetas(lz, col_texto, yy + 2, etiquetas)
 
-        # Su barra en el eje.
-        x0 = x_de(_mes(etapa["desde"], hoy))
-        yb = y + 10
-        if actual:
-            x1 = xh
-            lz.defs_raw(
-                f'<linearGradient id="viva{i}" x1="0" x2="1"><stop offset="0" stop-color="{t["acento2"]}"/>'
-                f'<stop offset="1" stop-color="{t["acento"]}"/></linearGradient>'
-            )
-            fin = etapa.get("fin_previsto")
-            if fin:
-                xf = x_de(_mes(fin, hoy))
-                lz.raw(f'<line x1="{f1(x1)}" y1="{yb + 3}" x2="{f1(xf)}" y2="{yb + 3}" stroke="{t["acento"]}" stroke-width="2" stroke-dasharray="2 4" opacity="0.55"/>')
-            lz.raw(f'<rect x="{f1(x0)}" y="{yb}" width="{f1(max(x1 - x0, 6))}" height="6" rx="3" fill="url(#viva{i})"/>')
-            lz.raw(
-                f'<circle cx="{f1(x1)}" cy="{yb + 3}" r="3" fill="none" stroke="{t["acento"]}" stroke-width="1.2">'
-                f'<animate attributeName="r" values="3;10" dur="2.4s" repeatCount="indefinite"/>'
-                f'<animate attributeName="opacity" values="0.8;0" dur="2.4s" repeatCount="indefinite"/></circle>'
-                f'<circle cx="{f1(x1)}" cy="{yb + 3}" r="3.5" fill="{t["acento"]}"/>'
-            )
-        else:
-            x1 = x_de(_mes(etapa["hasta"], hoy).replace(day=28))
-            color = t["tinta"] if etapa["tipo"] != "estudios" else t["suave"]
-            lz.raw(f'<rect x="{f1(x0)}" y="{yb}" width="{f1(max(x1 - x0, 6))}" height="6" rx="3" fill="{color}" opacity="0.85"/>')
+        _barra(lz, i, etapa, x_de, hoy, y + 10)
 
+        y += alto_fila + 38
+        if i < len(filas) - 1:
+            separador(lz, y - 20)
+    return lz.render()
+
+
+def _trayectoria_movil(tema: str, perfil: dict, ancho: float) -> str:
+    """En móvil, el eje de tiempo va arriba, con una barra por etapa, y las
+    etapas debajo, a todo el ancho. Cada etapa lleva su número en las dos partes."""
+    etapas = perfil["trayectoria"]
+    col = ancho - 2 * X
+    x_num = X + 22            # las barras empiezan tras el número de la etapa
+    y_eje = 56 + 28
+    alto_eje = 26 + len(etapas) * 22 + 34
+
+    filas = []
+    for etapa in etapas:
+        lineas = envolver(etapa["texto"], "pequeno", col)
+        etiquetas = _filas_etiquetas(etapa.get("etiquetas", []), col)
+        alto = 18 + 22 + 20 + 12 + len(lineas) * 19 + (34 + 28 * (len(etiquetas) - 1) if etapa.get("etiquetas") else 0)
+        filas.append((etapa, lineas, etiquetas, alto))
+    y_filas = y_eje + alto_eje + 26
+    alto = y_filas + sum(a + 38 for *_, a in filas) - 38 + 28
+
+    lz = Lienzo(ancho, alto, tema, "Trayectoria",
+                "; ".join(f"{e['titulo']}, {e['lugar']} ({_rango(e)})" for e in etapas))
+    tarjeta(lz, "02", "Trayectoria")
+    y_fin_eje = y_eje + alto_eje - 22
+    x_de, hoy = _eje(lz, x_num + 4, ancho - X - 4, y_eje + 8, y_eje, y_fin_eje, y_fin_eje + 16)
+    for i, etapa in enumerate(etapas):
+        yb = y_eje + 26 + i * 22
+        lz.raw(lz.texto(X, yb + 7, f"{i + 1:02d}", "mono-pequeno", "acento" if not etapa.get("hasta") else "suave"))
+        _barra(lz, i, etapa, x_de, hoy, yb)
+    separador(lz, y_filas - 26)
+
+    y = y_filas
+    for i, (etapa, lineas, etiquetas, alto_fila) in enumerate(filas):
+        actual = not etapa.get("hasta")
+        lz.raw(lz.texto(X, y + 10, f"{i + 1:02d} · {etapa['tipo'].upper()}", "mono-pequeno", "acento" if actual else "suave"))
+        lz.raw(lz.texto(ancho - X, y + 10, _rango(etapa), "etiqueta", "tinta" if actual else "suave", anchor="end"))
+        lz.raw(lz.texto(X, y + 38, etapa["titulo"], "dato", "tinta"))
+        lz.raw(lz.texto(X, y + 58, etapa["lugar"], "pequeno", "suave"))
+        yy = y + 84
+        for linea in lineas:
+            lz.raw(lz.texto(X, yy, linea, "pequeno", "tinta"))
+            yy += 19
+        if etapa.get("etiquetas"):
+            _etiquetas(lz, X, yy + 2, etiquetas)
         y += alto_fila + 38
         if i < len(filas) - 1:
             separador(lz, y - 20)
@@ -189,12 +283,16 @@ def trayectoria(tema: str, perfil: dict) -> str:
 
 # --- 03 Con qué trabajo ------------------------------------------------------
 
+def _ancho_chip(item: dict) -> float:
+    return 10 + 15 + 8 + medir(item["nombre"], "pequeno-fuerte") + 12
+
+
 def _chip(lz: Lienzo, x: float, y: float, item: dict) -> float:
     """Dibuja un chip y devuelve su ancho."""
     t = lz.t
     destacado = item.get("empresa", False)
     nombre = item["nombre"]
-    w = 10 + 15 + 8 + medir(nombre, "pequeno-fuerte") + 12
+    w = _ancho_chip(item)
     borde = t["acento"] if destacado else t["linea"]
     lz.raw(f'<rect x="{f1(x)}" y="{f1(y)}" width="{f1(w)}" height="30" rx="8" fill="{t["panel"]}" '
            f'stroke="{borde}" stroke-opacity="{0.6 if destacado else 1}"/>')
@@ -210,46 +308,57 @@ def _chip(lz: Lienzo, x: float, y: float, item: dict) -> float:
     return w
 
 
-def stack(tema: str, perfil: dict) -> str:
+def stack(tema: str, perfil: dict, ancho: float) -> str:
     grupos = perfil["stack"]
-    x_chips, x_max = 168, ANCHO - X
+    movil = es_movil(ancho)
+    # En móvil, el nombre del grupo va encima de sus chips y no a la izquierda.
+    x_chips, x_max = (X if movil else 168), ancho - X
+    rotulo = 26 if movil else 0
 
     # Reparto de chips en líneas, para conocer la altura antes de dibujar.
     reparto = []
     for grupo in grupos:
-        lineas, actual, ancho = [], [], 0.0
+        lineas, actual, ocupado = [], [], 0.0
         for item in grupo["items"]:
-            w = 10 + 15 + 8 + medir(item["nombre"], "pequeno-fuerte") + 12
-            if actual and x_chips + ancho + w > x_max:
+            w = _ancho_chip(item)
+            if actual and x_chips + ocupado + w > x_max:
                 lineas.append(actual)
-                actual, ancho = [], 0.0
+                actual, ocupado = [], 0.0
             actual.append(item)
-            ancho += w + 8
+            ocupado += w + 8
         lineas.append(actual)
         reparto.append((grupo["grupo"], lineas))
-    alto = 56 + 26 + sum(len(l) * 40 + 30 for _, l in reparto) - 30 + 30
+    alto = 56 + 26 + sum(rotulo + len(l) * 40 + 30 for _, l in reparto) - 30 + 30
+    if movil:
+        alto += 26  # la leyenda, que en móvil no cabe en la cabecera
 
-    total = sum(len(g["items"]) for g in grupos)
-    lz = Lienzo(ANCHO, alto, tema, "Con qué trabajo",
+    lz = Lienzo(ancho, alto, tema, "Con qué trabajo",
                 ", ".join(i["nombre"] for g in grupos for i in g["items"]) + ".")
     t = lz.t
     tarjeta(lz, "03", "Con qué trabajo")
-    # Leyenda en la cabecera: qué significa el borde de color.
+    # Leyenda: qué significa el borde de color. En la cabecera o, en móvil, al pie.
     leyenda = perfil.get("leyenda_empresa", "usado en la empresa")
     w_ley = medir(leyenda, "meta")
-    lz.raw(f'<rect x="{f1(ANCHO - X - w_ley - 20)}" y="30" width="12" height="10" rx="3" fill="{t["panel"]}" stroke="{t["acento"]}" stroke-opacity="0.6"/>')
-    lz.raw(lz.texto(ANCHO - X, 38, leyenda, "meta", "suave", anchor="end"))
+    y_ley = alto - 30 if movil else 38
+    x_ley = X + 20 if movil else ancho - X
+    x_caja = X if movil else ancho - X - w_ley - 20
+    lz.raw(f'<rect x="{f1(x_caja)}" y="{y_ley - 8}" width="12" height="10" rx="3" fill="{t["panel"]}" stroke="{t["acento"]}" stroke-opacity="0.6"/>')
+    lz.raw(lz.texto(x_ley, y_ley, leyenda, "meta", "suave", anchor="start" if movil else "end"))
 
     y = 56 + 26
     for k, (nombre, lineas) in enumerate(reparto):
-        lz.raw(lz.texto(X, y + 19.5, nombre, "mono-pequeno", "suave", mayus=True))
+        if movil:
+            lz.raw(lz.texto(X, y + 10, nombre, "mono-pequeno", "suave", mayus=True))
+            y += rotulo
+        else:
+            lz.raw(lz.texto(X, y + 19.5, nombre, "mono-pequeno", "suave", mayus=True))
         for linea in lineas:
             x = x_chips
             for item in linea:
                 x += _chip(lz, x, y, item) + 8
             y += 40
         y += 30
-        if k < len(reparto) - 1:
+        if k < len(reparto) - 1 or movil:
             separador(lz, y - 30 + 10)
     return lz.render()
 
@@ -263,10 +372,15 @@ def _rect_esquinas(x, y, w, h, tl, tr, br, bl) -> str:
             f"V{y + tl}" + (f"A{tl} {tl} 0 0 1 {x + tl} {y}" if tl else "") + "Z")
 
 
-def contacto(tema: str, clave: str, rotulo: str, valor: str, posicion: int) -> str:
-    """Uno de los tres segmentos (posición 0, 1 o 2) de la barra de contacto."""
-    w = round(ANCHO / 3, 2)
-    h = 58
+def contacto(tema: str, clave: str, rotulo: str, valor: str, posicion: int, ancho: float) -> str:
+    """Uno de los tres segmentos (posición 0, 1 o 2) de la barra de contacto.
+
+    En móvil no cabe el valor (el email solo ya ocupa más que un tercio), así
+    que el segmento lleva el icono y el rótulo, centrados.
+    """
+    movil = es_movil(ancho)
+    w = round(ancho / 3, 2)
+    h = 64 if movil else 58
     lz = Lienzo(w, h, tema, f"{rotulo}: {valor}")
     t = lz.t
     r = 12
@@ -277,6 +391,11 @@ def contacto(tema: str, clave: str, rotulo: str, valor: str, posicion: int) -> s
            f'fill="{t["fondo"]}" stroke="{t["linea"]}"/>')
     if posicion < 2:
         lz.raw(f'<rect x="{w - 0.6}" y="1" width="1" height="{h - 2}" fill="{t["fondo"]}"/>')
+    if movil:
+        lz.raw(f'<g transform="translate({f1(w / 2 - 8)} 13)" fill="none" stroke="{t["acento"]}" stroke-width="1.4" '
+               f'stroke-linecap="round" stroke-linejoin="round">{ICONOS_CONTACTO[clave]}</g>')
+        lz.raw(lz.texto(w / 2, 48, rotulo, "pequeno-fuerte", "tinta", anchor="middle"))
+        return lz.render()
     lz.raw(f'<g transform="translate(22 {h / 2 - 8})" fill="none" stroke="{t["acento"]}" stroke-width="1.4" '
            f'stroke-linecap="round" stroke-linejoin="round">{ICONOS_CONTACTO[clave]}</g>')
     lz.raw(lz.texto(52, 25, rotulo, "mono-pequeno", "suave", mayus=True))
@@ -288,9 +407,9 @@ def contacto(tema: str, clave: str, rotulo: str, valor: str, posicion: int) -> s
 
 def main() -> None:
     perfil = datos()
-    guardar("sobre-mi", {tema: sobre_mi(tema, perfil) for tema in TEMAS})
-    guardar("trayectoria", {tema: trayectoria(tema, perfil) for tema in TEMAS})
-    guardar("stack", {tema: stack(tema, perfil) for tema in TEMAS})
+    guardar_versiones("sobre-mi", lambda tema, ancho: sobre_mi(tema, perfil, ancho))
+    guardar_versiones("trayectoria", lambda tema, ancho: trayectoria(tema, perfil, ancho))
+    guardar_versiones("stack", lambda tema, ancho: stack(tema, perfil, ancho))
     c = perfil["contacto"]
     segmentos = [
         ("web", "Portfolio", c["web"].removeprefix("https://").rstrip("/")),
@@ -298,7 +417,9 @@ def main() -> None:
         ("email", "Email", c["email"]),
     ]
     for i, (clave, rotulo, valor) in enumerate(segmentos):
-        guardar(f"contacto-{clave}", {tema: contacto(tema, clave, rotulo, valor, i) for tema in TEMAS})
+        guardar_versiones(f"contacto-{clave}",
+                          lambda tema, ancho, clave=clave, rotulo=rotulo, valor=valor, i=i:
+                          contacto(tema, clave, rotulo, valor, i, ancho))
     print("sobre-mi, trayectoria, stack y contacto generados")
 
 

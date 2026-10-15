@@ -32,6 +32,11 @@ DATOS = RAIZ / "datos" / "perfil.json"
 # Ancho de diseño de todas las piezas: el que ocupa la columna del README en
 # escritorio, para que se vean a tamaño real y no reescaladas.
 ANCHO = 860
+# Ancho de la versión para móvil. El README elige entre las dos con un
+# <picture media="(max-width: …)">: un SVG de 860 encogido a lo que mide la
+# pantalla de un teléfono deja el texto en 5 o 6 px. Este, en cambio, se ve a
+# un tamaño parecido al real.
+ANCHO_MOVIL = 440
 
 SIMPLE_ICONS = "https://cdn.jsdelivr.net/npm/simple-icons@13.21.0/icons/{}.svg"
 
@@ -208,6 +213,16 @@ def guardar(nombre: str, svg_por_tema: dict[str, str]) -> None:
         (ASSETS / f"{nombre}-{tema}.svg").write_text(svg, encoding="utf-8", newline="\n")
 
 
+def guardar_versiones(nombre: str, construir) -> None:
+    """Las cuatro versiones de una pieza: escritorio y móvil, en los dos temas.
+
+    `construir(tema, ancho)` devuelve el SVG; la de móvil se guarda como
+    <nombre>-movil-<tema>.svg.
+    """
+    guardar(nombre, {tema: construir(tema, ANCHO) for tema in TEMAS})
+    guardar(f"{nombre}-movil", {tema: construir(tema, ANCHO_MOVIL) for tema in TEMAS})
+
+
 # --- el lienzo -------------------------------------------------------------
 
 class Lienzo:
@@ -283,6 +298,10 @@ class Lienzo:
             f"<style>{self._css_fuentes()}{''.join(self.css)}</style>"
             f"{defs}{''.join(self.partes)}</svg>\n"
         )
+
+
+def es_movil(ancho: float) -> bool:
+    return ancho < ANCHO
 
 
 def tarjeta(lienzo: Lienzo, indice: str, titulo: str, meta: str = "") -> float:

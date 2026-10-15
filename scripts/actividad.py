@@ -2,14 +2,25 @@
 """La tarjeta de actividad, con datos vivos de GitHub:
 
 - el calendario del último año en isométrico: cada día es una columna cuya
-  altura sale de lo que hice ese día, y las columnas crecen al cargar;
-- unas cifras (total, días con actividad, rachas, mejor día);
+  altura sale de lo que hice ese día, y las columnas crecen al cargar. La
+  parte de abajo es lo público, en la escala de azules; encima, rayado en
+  violeta, lo que hice en repositorios privados;
+- unas cifras (total, públicas y privadas, rachas, mejor día);
 - el reparto de lenguajes de mis repositorios públicos.
 
-Necesita un token en GITHUB_TOKEN (en el workflow lo pone Actions; en local
-vale `GITHUB_TOKEN=$(gh auth token)`).
+De dónde sale cada cosa:
 
-Uso: python scripts/actividad.py
+- Lo público, del calendario de contribuciones tal y como lo ve cualquiera
+  (GITHUB_TOKEN, que en el workflow pone Actions).
+- Lo privado, de los commits que firmo en mis repositorios privados, en todas
+  sus ramas, contados uno a uno (PERFIL_TOKEN, un token personal con permiso de
+  lectura sobre ellos). El calendario no sirve para esto: GitHub no cuenta lo
+  que no llega a la rama principal y la API no reparte por días lo privado.
+  De esos repositorios solo se publica CUÁNTO y CUÁNDO; ni nombres ni mensajes.
+  Sin PERFIL_TOKEN, la tarjeta sale como antes, solo con lo público.
+
+En local:
+    GITHUB_TOKEN=$(gh auth token) PERFIL_TOKEN=$(gh auth token) python scripts/actividad.py
 """
 
 from __future__ import annotations
@@ -21,11 +32,12 @@ import os
 import urllib.request
 from collections import Counter
 
-from comun import ANCHO, TEMAS, Lienzo, datos, f1, guardar, medir, tarjeta
+from comun import TEMAS, Lienzo, datos, es_movil, f1, guardar_versiones, medir, tarjeta
 
 API = "https://api.github.com"
 MESES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"]
 DIAS = ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"]
+X = 28
 
 # Lenguajes que linguist confunde: Hack es un dialecto de PHP y en mis
 # repositorios son ficheros PHP de toda la vida.
@@ -38,16 +50,14 @@ COLORES_LENGUAJE = {
 # Geometría de la perspectiva (dimétrica): las semanas avanzan hacia la
 # derecha con poca pendiente y los días bajan en diagonal. Más ancha y más baja
 # que la isométrica, cabe mejor en una tarjeta apaisada.
-CELDA = 9.6                                    # lado de la celda en el suelo
 EJE_U = (math.cos(math.radians(22)), math.sin(math.radians(22)))    # semanas
 EJE_V = (-math.cos(math.radians(45)), math.sin(math.radians(45)))   # días
 HUECO = 0.1           # fracción de celda que queda libre entre columnas
-ALTURA_MAX = 62.0
 ALTURA_VACIA = 1.6
 
 
-def peticion(url: str, cuerpo: dict | None = None):
-    token = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN")
+def peticion(url: str, cuerpo: dict | None = None, token: str | None = None):
+    token = token or os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN")
     if not token:
         raise SystemExit("Falta GITHUB_TOKEN. En local: GITHUB_TOKEN=$(gh auth token) python scripts/actividad.py")
     req = urllib.request.Request(
@@ -59,8 +69,8 @@ def peticion(url: str, cuerpo: dict | None = None):
         return json.loads(r.read())
 
 
-def graphql(consulta: str, **variables) -> dict:
-    respuesta = peticion(f"{API}/graphql", {"query": consulta, "variables": variables})
+def graphql(consulta: str, token: str | None = None, **variables) -> dict:
+    respuesta = peticion(f"{API}/graphql", {"query": consulta, "variables": variables}, token)
     if "errors" in respuesta:
         raise SystemExit(f"GraphQL: {respuesta['errors']}")
     return respuesta["data"]
@@ -76,6 +86,50 @@ def calendario(usuario: str) -> list[tuple[dt.date, int]]:
     )
     semanas = d["user"]["contributionsCollection"]["contributionCalendar"]["weeks"]
     return [(dt.date.fromisoformat(x["date"]), x["contributionCount"]) for s in semanas for x in s["contributionDays"]]
+
+
+def privadas(desde: dt.date) -> Counter | None:
+    """Commits míos por día en repositorios privados (todas las ramas, sin repetir).
+
+    Devuelve None si no hay PERFIL_TOKEN: entonces la tarjeta no habla de lo privado.
+    """
+    token = os.environ.get("PERFIL_TOKEN")
+    if not token:
+        print("actividad: sin PERFIL_TOKEN, solo la actividad pública")
+        return None
+    d = graphql(
+        """{ viewer { id repositories(first: 100, privacy: PRIVATE, isFork: false,
+               ownerAffiliations: [OWNER, COLLABORATOR, ORGANIZATION_MEMBER]) {
+             nodes { name owner { login } refs(refPrefix: "refs/heads/", first: 100) { nodes { name } } } } } }""",
+        token,
+    )
+    autor = d["viewer"]["id"]
+    consulta = """query($o: String!, $n: String!, $rama: String!, $desde: GitTimestamp!, $autor: ID!, $tras: String) {
+      repository(owner: $o, name: $n) { ref(qualifiedName: $rama) { target { ... on Commit {
+        history(first: 100, after: $tras, since: $desde, author: {id: $autor}) {
+          pageInfo { hasNextPage endCursor } nodes { oid authoredDate } } } } } } }"""
+    por_dia: Counter = Counter()
+    for repo in d["viewer"]["repositories"]["nodes"]:
+        vistos: set[str] = set()
+        for rama in repo["refs"]["nodes"]:
+            tras = None
+            while True:
+                r = graphql(consulta, token, o=repo["owner"]["login"], n=repo["name"], rama=f"refs/heads/{rama['name']}",
+                            desde=f"{desde.isoformat()}T00:00:00Z", autor=autor, tras=tras)
+                ref = (r["repository"] or {}).get("ref")
+                if not ref:
+                    break
+                historia = ref["target"]["history"]
+                for c in historia["nodes"]:
+                    if c["oid"] not in vistos:
+                        vistos.add(c["oid"])
+                        # La fecha tal y como la apuntó git, con la zona del autor:
+                        # es el día en que lo hice, no el de UTC.
+                        por_dia[dt.date.fromisoformat(c["authoredDate"][:10])] += 1
+                if not historia["pageInfo"]["hasNextPage"]:
+                    break
+                tras = historia["pageInfo"]["endCursor"]
+    return por_dia
 
 
 def lenguajes(usuario: str) -> tuple[Counter, int]:
@@ -125,59 +179,133 @@ def sombra(color: str, factor: float) -> str:
     return "#{:02x}{:02x}{:02x}".format(*(max(0, min(255, round(c * factor))) for c in (r, g, b)))
 
 
+def mezcla(a: str, b: str, t: float) -> str:
+    """Color entre a (t=0) y b (t=1)."""
+    ca = [int(a[i:i + 2], 16) for i in (1, 3, 5)]
+    cb = [int(b[i:i + 2], 16) for i in (1, 3, 5)]
+    return "#{:02x}{:02x}{:02x}".format(*(round(x + (y - x) * t) for x, y in zip(ca, cb)))
+
+
 def fecha_corta(d: dt.date) -> str:
     return f"{d.day} {MESES[d.month - 1]}"
 
 
+def numero(n: int) -> str:
+    return f"{n:,}".replace(",", ".")
+
+
 # --- la tarjeta --------------------------------------------------------------
 
-def construir(tema: str, dias: list[tuple[dt.date, int]], total_leng: Counter, n_repos: int) -> str:
+def _rayado(lz: Lienzo, tema: str) -> None:
+    """Los rayados de lo privado, uno por cara de la columna (arriba, izquierda, derecha)."""
+    t = lz.t
+    claro = tema == "light"
+    fondo = mezcla(t["acento2"], t["fondo"], 0.72 if claro else 0.6)
+    raya = t["acento2"] if claro else mezcla(t["acento2"], t["fondo"], 0.12)
+    factores = (1.0, 0.86, 0.74) if claro else (1.0, 0.8, 0.64)
+    for k, f in enumerate(factores):
+        lz.defs_raw(
+            f'<pattern id="priv{k}" width="3.4" height="3.4" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">'
+            f'<rect width="3.4" height="3.4" fill="{sombra(fondo, f)}"/><rect width="1.4" height="3.4" fill="{sombra(raya, f)}"/></pattern>'
+        )
+
+
+def _muestra_privada(lz: Lienzo, x: float, y: float, lado: float = 10) -> None:
+    lz.raw(f'<rect x="{f1(x)}" y="{f1(y)}" width="{lado}" height="{lado}" rx="2" fill="url(#priv0)" '
+           f'stroke="{lz.t["acento2"]}" stroke-opacity="0.5" stroke-width="0.8"/>')
+
+
+def construir(tema: str, ancho: float, publicas: list[tuple[dt.date, int]], priv: Counter | None,
+              total_leng: Counter, n_repos: int) -> str:
     t = TEMAS[tema]
+    movil = es_movil(ancho)
     escala = t["escala"].split(",")
-    nivel = niveles(dias)
+    con_privadas = priv is not None
+    priv = priv or Counter()
+    dias = [(d, n + priv.get(d, 0)) for d, n in publicas]   # el total de cada día
+    nivel = niveles(publicas)
     maximo = max((n for _, n in dias), default=0) or 1
 
-    alto = 512
+    # La composición. En escritorio, el calendario a la izquierda y las cifras
+    # a su derecha; en móvil, las cifras arriba y el calendario, más pequeño, debajo.
+    if movil:
+        celda, altura_max = 7.0, 46.0
+        y_cifras, paso_cifras, col_cifras = 76, 52, (ancho - 2 * X) / 2
+        x_cifras = X
+        oy = y_cifras + 4 * paso_cifras - 6 + altura_max
+        ox = X + 7 * celda * -EJE_V[0] + 6
+        ly = oy + 53 * celda * EJE_U[1] + 7 * celda * EJE_V[1] + 36
+    else:
+        celda, altura_max = 9.6, 62.0
+        y_cifras, paso_cifras, col_cifras = 76 if con_privadas else 84, 58 if con_privadas else 66, 118
+        x_cifras = 612
+        ox, oy = 98.0, 76.0 + altura_max
+        ly = 330
+
+    # Los lenguajes, repartidos en líneas (en escritorio caben en una).
+    suma = sum(total_leng.values()) or 1
+    principales = total_leng.most_common(5)
+    resto = suma - sum(v for _, v in principales)
+    tramos = principales + ([("Otros", resto)] if resto > 0 else [])
+    filas_leng: list[list[tuple[str, str, int]]] = [[]]
+    xx = 0.0
+    for i, (nombre, v) in enumerate(tramos):
+        porcentaje = f"{100 * v / suma:.1f}%".replace(".", ",")
+        w = 14 + medir(nombre, "pequeno-fuerte") + 6 + medir(porcentaje, "mono-pequeno")
+        if filas_leng[-1] and xx + w > ancho - 2 * X:
+            filas_leng.append([])
+            xx = 0.0
+        filas_leng[-1].append((nombre, porcentaje, i))
+        xx += w + 24
+    y0_leng = ly + 66 if movil else 418
+    alto = y0_leng + 20 + 36 + 24 * (len(filas_leng) - 1) + 28 + (8 if movil else 0)
+
     desde, hasta = dias[0][0], dias[-1][0]
     total = sum(n for _, n in dias)
-    lz = Lienzo(ANCHO, alto, tema, "Actividad en GitHub",
-                f"{total} contribuciones entre {fecha_corta(desde)} de {desde.year} y {fecha_corta(hasta)} de {hasta.year}.")
+    total_priv = sum(priv.get(d, 0) for d, _ in publicas)
+    desc = f"{total} contribuciones entre {fecha_corta(desde)} de {desde.year} y {fecha_corta(hasta)} de {hasta.year}"
+    if con_privadas:
+        desc += f", {total_priv} de ellas en repositorios privados"
+    lz = Lienzo(ancho, alto, tema, "Actividad en GitHub", desc + ".")
     tarjeta(lz, "04", "Actividad", f"{fecha_corta(desde)} {desde.year} — {fecha_corta(hasta)} {hasta.year}")
+    if con_privadas:
+        _rayado(lz, tema)
 
     # Origen: la esquina trasera (semana 0, lunes) del suelo.
-    ox, oy = 98.0, 76.0 + ALTURA_MAX
-
     def punto(u: float, v: float, h: float) -> tuple[float, float]:
-        return (ox + (u * EJE_U[0] + v * EJE_V[0]) * CELDA,
-                oy + (u * EJE_U[1] + v * EJE_V[1]) * CELDA - h)
+        return (ox + (u * EJE_U[0] + v * EJE_V[0]) * celda,
+                oy + (u * EJE_U[1] + v * EJE_V[1]) * celda - h)
 
     def camino(puntos: list[tuple[float, float]]) -> str:
         return "M" + "L".join(f"{f1(x)} {f1(y)}" for x, y in puntos) + "Z"
 
     inicio = dias[0][0] - dt.timedelta(days=dias[0][0].weekday())  # columnas de lunes a domingo
     columnas = []
-    for fecha, n in dias:
+    for (fecha, n_pub), (_, n) in zip(publicas, dias):
         w = (fecha - inicio).days // 7
         d = fecha.weekday()
-        h = ALTURA_VACIA if n == 0 else 5 + (ALTURA_MAX - 5) * (n / maximo) ** 0.62
+        h = ALTURA_VACIA if n == 0 else 5 + (altura_max - 5) * (n / maximo) ** 0.62
         profundidad = w * EJE_U[1] + d * EJE_V[1]
-        columnas.append((profundidad, w, d, h, nivel[fecha], n, fecha))
+        columnas.append((profundidad, w, d, h, nivel[fecha], n_pub, n - n_pub, fecha))
     columnas.sort()  # de atrás hacia delante: el algoritmo del pintor
 
     caras = []
-    for _, w, d, h, lv, n, fecha in columnas:
+    for _, w, d, h, lv, n_pub, n_priv, fecha in columnas:
         u0, u1 = w + HUECO, w + 1 - HUECO
         v0, v1 = d + HUECO, d + 1 - HUECO
-        arriba = lambda hh: [punto(u0, v0, hh), punto(u1, v0, hh), punto(u1, v1, hh), punto(u0, v1, hh)]
-        izq = lambda hh: [punto(u0, v1, 0), punto(u1, v1, 0), punto(u1, v1, hh), punto(u0, v1, hh)]
-        der = lambda hh: [punto(u1, v0, 0), punto(u1, v1, 0), punto(u1, v1, hh), punto(u1, v0, hh)]
+        arriba = lambda b, hh: [punto(u0, v0, hh), punto(u1, v0, hh), punto(u1, v1, hh), punto(u0, v1, hh)]
+        izq = lambda b, hh: [punto(u0, v1, b), punto(u1, v1, b), punto(u1, v1, hh), punto(u0, v1, hh)]
+        der = lambda b, hh: [punto(u1, v0, b), punto(u1, v1, b), punto(u1, v1, hh), punto(u1, v0, hh)]
         color = escala[lv]
         tonos = (color, sombra(color, 0.80 if tema == "dark" else 0.86), sombra(color, 0.64 if tema == "dark" else 0.74))
-        titulo = f"<title>{fecha.isoformat()}: {n}</title>"
-        if n == 0:
+        if con_privadas:
+            titulo = f"<title>{fecha.isoformat()}: {n_pub} públicas · {n_priv} privadas</title>"
+        else:
+            titulo = f"<title>{fecha.isoformat()}: {n_pub}</title>"
+        if n_pub + n_priv == 0:
             caras.append(
-                f'<g>{titulo}<path d="{camino(der(h))}" fill="{tonos[2]}"/><path d="{camino(izq(h))}" fill="{tonos[1]}"/>'
-                f'<path d="{camino(arriba(h))}" fill="{tonos[0]}"/></g>'
+                f'<g>{titulo}<path d="{camino(der(0, h))}" fill="{tonos[2]}"/><path d="{camino(izq(0, h))}" fill="{tonos[1]}"/>'
+                f'<path d="{camino(arriba(0, h))}" fill="{tonos[0]}"/></g>'
             )
             continue
         # Crecen al cargar, en diagonal desde la semana más antigua. El retraso va
@@ -186,29 +314,41 @@ def construir(tema: str, dias: list[tuple[dt.date, int]], total_leng: Counter, n
         retraso = 0.25 + w * 0.016
         dur = retraso + 0.9
         kt = f"0;{retraso / dur:.3f};1"
-        anim = lambda forma: (
-            f'<animate attributeName="d" dur="{dur:.2f}s" fill="freeze" calcMode="spline" keyTimes="{kt}" '
-            f'keySplines="0 0 1 1;0.2 0.8 0.2 1" values="{camino(forma(0.6))};{camino(forma(0.6))};{camino(forma(h))}"/>'
-        )
-        caras.append(
-            f'<g>{titulo}'
-            f'<path d="{camino(der(h))}" fill="{tonos[2]}">{anim(der)}</path>'
-            f'<path d="{camino(izq(h))}" fill="{tonos[1]}">{anim(izq)}</path>'
-            f'<path d="{camino(arriba(h))}" fill="{tonos[0]}">{anim(arriba)}</path></g>'
-        )
+
+        def cara(forma, b, hh, relleno):
+            ini = camino(forma(0.6, 0.6))
+            return (
+                f'<path d="{camino(forma(b, hh))}" fill="{relleno}">'
+                f'<animate attributeName="d" dur="{dur:.2f}s" fill="freeze" calcMode="spline" keyTimes="{kt}" '
+                f'keySplines="0 0 1 1;0.2 0.8 0.2 1" values="{ini};{ini};{camino(forma(b, hh))}"/></path>'
+            )
+
+        # Lo público abajo y lo privado encima, en la misma columna.
+        h_pub = h * n_pub / (n_pub + n_priv)
+        partes = [titulo]
+        if n_pub:
+            partes += [cara(der, 0, h_pub, tonos[2]), cara(izq, 0, h_pub, tonos[1])]
+            if not n_priv:
+                partes.append(cara(arriba, 0, h_pub, tonos[0]))
+        if n_priv:
+            partes += [cara(der, h_pub, h, "url(#priv2)"), cara(izq, h_pub, h, "url(#priv1)"),
+                       cara(arriba, h_pub, h, "url(#priv0)")]
+        caras.append(f'<g>{"".join(partes)}</g>')
     lz.raw("".join(caras))
 
     # Meses tumbados en el suelo, delante del domingo, siguiendo el eje de las semanas.
     mes_previo = None
+    escala_texto = 0.85 if movil else 1
     for fecha, _ in dias:
         if fecha.weekday() == 0 and fecha.day <= 7 and fecha.month != mes_previo:
             mes_previo = fecha.month
             w = (fecha - inicio).days // 7
             x, y = punto(w + 0.1, 8.0, 0)
-            matriz = f"{EJE_U[0]:.4f} {EJE_U[1]:.4f} {EJE_V[0]:.4f} {EJE_V[1]:.4f} {f1(x)} {f1(y)}"
+            matriz = (f"{EJE_U[0] * escala_texto:.4f} {EJE_U[1] * escala_texto:.4f} "
+                      f"{EJE_V[0] * escala_texto:.4f} {EJE_V[1] * escala_texto:.4f} {f1(x)} {f1(y)}")
             lz.raw(lz.texto(0, 0, MESES[fecha.month - 1], "mono-pequeno", "suave", extra=f' transform="matrix({matriz})"'))
 
-    # Cifras, arriba a la derecha: donde el isométrico deja hueco.
+    # Cifras: donde el isométrico deja hueco en escritorio, o arriba en móvil.
     viva, larga = rachas(dias)
     activos = sum(1 for _, n in dias if n)
     mejor_fecha, mejor_n = max(dias, key=lambda x: x[1])
@@ -218,59 +358,74 @@ def construir(tema: str, dias: list[tuple[dt.date, int]], total_leng: Counter, n
     favorito = DIAS[por_dia.most_common(1)[0][0]] if total else "—"
     dias_txt = lambda n: "día" if n == 1 else "días"
     cifras = [
-        (f"{total:,}".replace(",", "."), "", "contribuciones"),
-        (str(activos), "", "días activos"),
-        (str(larga), dias_txt(larga), "racha más larga"),
-        (str(viva), dias_txt(viva), "racha actual"),
-        (fecha_corta(mejor_fecha), "", f"mejor día · {mejor_n}"),
-        (favorito, "", "día más activo"),
+        (numero(total), "", "contribuciones", None),
+        (str(activos), "", "días activos", None),
     ]
-    cx0, cy0 = 612, 84
-    for i, (valor, unidad, rotulo) in enumerate(cifras):
-        x = cx0 + (i % 2) * 118
-        y = cy0 + (i // 2) * 66
+    if con_privadas:
+        cifras += [
+            (numero(total - total_priv), "", "públicas", "publica"),
+            (numero(total_priv), "", "privadas", "privada"),
+        ]
+    cifras += [
+        (str(larga), dias_txt(larga), "racha más larga", None),
+        (str(viva), dias_txt(viva), "racha actual", None),
+        (fecha_corta(mejor_fecha), "", f"mejor día · {mejor_n}", None),
+        (favorito, "", "día más activo", None),
+    ]
+    for i, (valor, unidad, rotulo, muestra) in enumerate(cifras):
+        x = x_cifras + (i % 2) * col_cifras
+        y = y_cifras + (i // 2) * paso_cifras
         lz.raw(lz.texto(x, y + 24, valor, "cifra-pequena", "tinta"))
         if unidad:
             lz.raw(lz.texto(x + medir(valor, "cifra-pequena") + 5, y + 24, unidad, "pequeno", "suave"))
-        lz.raw(lz.texto(x, y + 42, rotulo, "mono-pequeno", "suave"))
+        xr = x
+        if muestra == "publica":
+            lz.raw(f'<rect x="{f1(x)}" y="{y + 34}" width="9" height="9" rx="2" fill="{escala[-1]}"/>')
+            xr += 14
+        elif muestra == "privada":
+            _muestra_privada(lz, x, y + 34, 9)
+            xr += 14
+        lz.raw(lz.texto(xr, y + 42, rotulo, "mono-pequeno", "suave"))
 
-    # Leyenda, abajo a la izquierda.
-    ly = 330
-    lz.raw(lz.texto(40, ly + 9, "menos", "mono-pequeno", "suave"))
-    x = 40 + medir("menos", "mono-pequeno") + 8
+    # Leyenda, bajo el calendario.
+    x = 40 if not movil else X
+    lz.raw(lz.texto(x, ly + 9, "menos", "mono-pequeno", "suave"))
+    x += medir("menos", "mono-pequeno") + 8
     for color in escala:
         lz.raw(f'<rect x="{f1(x)}" y="{ly}" width="10" height="10" rx="2" fill="{color}"/>')
         x += 13
     lz.raw(lz.texto(x + 5, ly + 9, "más", "mono-pequeno", "suave"))
+    if con_privadas:
+        x += 5 + medir("más", "mono-pequeno") + 22
+        _muestra_privada(lz, x, ly)
+        lz.raw(lz.texto(x + 16, ly + 9, "privadas", "mono-pequeno", "suave"))
 
     # Lenguajes de los repositorios públicos.
-    y0 = 418
-    lz.raw(f'<line x1="28" y1="{y0 - 22.5}" x2="{ANCHO - 28}" y2="{y0 - 22.5}" stroke="{t["linea"]}"/>')
-    lz.raw(lz.texto(28, y0, "Lenguajes", "seccion", "suave", mayus=True))
-    lz.raw(lz.texto(ANCHO - 28, y0, f"{n_repos} repositorios públicos", "meta", "suave", anchor="end"))
-    suma = sum(total_leng.values()) or 1
-    principales = total_leng.most_common(5)
-    resto = suma - sum(v for _, v in principales)
-    tramos = principales + ([("Otros", resto)] if resto > 0 else [])
+    y0 = y0_leng
+    lz.raw(f'<line x1="{X}" y1="{y0 - 22.5}" x2="{ancho - X}" y2="{y0 - 22.5}" stroke="{t["linea"]}"/>')
+    lz.raw(lz.texto(X, y0, "Lenguajes", "seccion", "suave", mayus=True))
+    lz.raw(lz.texto(ancho - X, y0, f"{n_repos} repos públicos" if movil else f"{n_repos} repositorios públicos",
+                    "meta", "suave", anchor="end"))
     colores = COLORES_LENGUAJE[tema]
-    barra_y, barra_w = y0 + 20, ANCHO - 56
-    lz.defs_raw(f'<clipPath id="barra"><rect x="28" y="{barra_y}" width="{barra_w}" height="8" rx="4"/></clipPath>')
-    x = 28.0
+    barra_y, barra_w = y0 + 20, ancho - 2 * X
+    lz.defs_raw(f'<clipPath id="barra"><rect x="{X}" y="{barra_y}" width="{barra_w}" height="8" rx="4"/></clipPath>')
+    x = float(X)
     segmentos = []
     for i, (nombre, v) in enumerate(tramos):
-        ancho = barra_w * v / suma
-        segmentos.append(f'<rect x="{f1(x)}" y="{barra_y}" width="{f1(ancho + 0.6)}" height="8" fill="{colores[i % len(colores)]}"/>')
-        x += ancho
+        ancho_tramo = barra_w * v / suma
+        segmentos.append(f'<rect x="{f1(x)}" y="{barra_y}" width="{f1(ancho_tramo + 0.6)}" height="8" fill="{colores[i % len(colores)]}"/>')
+        x += ancho_tramo
     lz.raw(f'<g clip-path="url(#barra)">{"".join(segmentos)}</g>')
-    x = 28.0
     ly = barra_y + 36
-    for i, (nombre, v) in enumerate(tramos):
-        porcentaje = f"{100 * v / suma:.1f}%".replace(".", ",")
-        lz.raw(f'<circle cx="{f1(x + 4)}" cy="{ly - 4}" r="4" fill="{colores[i % len(colores)]}"/>')
-        lz.raw(lz.texto(x + 14, ly, nombre, "pequeno-fuerte", "tinta"))
-        x += 14 + medir(nombre, "pequeno-fuerte") + 6
-        lz.raw(lz.texto(x, ly, porcentaje, "mono-pequeno", "suave"))
-        x += medir(porcentaje, "mono-pequeno") + 24
+    for fila in filas_leng:
+        x = float(X)
+        for nombre, porcentaje, i in fila:
+            lz.raw(f'<circle cx="{f1(x + 4)}" cy="{ly - 4}" r="4" fill="{colores[i % len(colores)]}"/>')
+            lz.raw(lz.texto(x + 14, ly, nombre, "pequeno-fuerte", "tinta"))
+            x += 14 + medir(nombre, "pequeno-fuerte") + 6
+            lz.raw(lz.texto(x, ly, porcentaje, "mono-pequeno", "suave"))
+            x += medir(porcentaje, "mono-pequeno") + 24
+        ly += 24
     return lz.render()
 
 
@@ -278,9 +433,13 @@ def main() -> None:
     perfil = datos()
     usuario = perfil["usuario"]
     dias = calendario(usuario)
+    priv = privadas(dias[0][0])
     total, n_repos = lenguajes(usuario)
-    guardar("actividad", {tema: construir(tema, dias, total, n_repos) for tema in TEMAS})
-    print(f"actividad: {sum(n for _, n in dias)} contribuciones · lenguajes de {n_repos} repositorios")
+    guardar_versiones("actividad", lambda tema, ancho: construir(tema, ancho, dias, priv, total, n_repos))
+    texto = f"actividad: {sum(n for _, n in dias)} contribuciones públicas"
+    if priv is not None:
+        texto += f" y {sum(priv.get(d, 0) for d, _ in dias)} commits privados"
+    print(f"{texto} · lenguajes de {n_repos} repositorios")
 
 
 if __name__ == "__main__":

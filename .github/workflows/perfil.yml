@@ -4,6 +4,14 @@
 # - Al cambiar datos/perfil.json, los scripts o las fuentes, para que el cambio
 #   se vea sin tener que generar nada a mano.
 #
+# Los SVG se publican en la rama `salida`, reescrita con un único commit cada
+# vez: main no recibe commits automáticos, y como `salida` no es la rama
+# principal, esos commits no cuentan en el calendario de contribuciones.
+#
+# Secretos:
+# - PERFIL_TOKEN (opcional): token personal con lectura de los repositorios
+#   privados, para la actividad privada. Sin él, solo sale la pública.
+#
 # Los lenguajes salen solo de los repositorios PÚBLICOS, a propósito.
 name: Perfil
 
@@ -16,6 +24,7 @@ on:
       - "datos/**"
       - "scripts/**"
       - "assets/source/**"
+      - ".github/workflows/perfil.yml"
   workflow_dispatch:
 
 permissions:
@@ -49,20 +58,30 @@ jobs:
         working-directory: scripts
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PERFIL_TOKEN: ${{ secrets.PERFIL_TOKEN }}
         run: python actividad.py
 
       - name: Banner
         working-directory: scripts
         run: python banner.py
 
-      - name: Guardar si ha cambiado algo
+      - name: Publicar en la rama salida, si ha cambiado algo
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          git add assets
-          if git diff --cached --quiet; then
-            echo "Nada que actualizar."
-            exit 0
+          mkdir -p "$RUNNER_TEMP/salida" "$RUNNER_TEMP/previo"
+          cp assets/*.svg "$RUNNER_TEMP/salida/"
+          if git fetch -q --depth=1 origin salida 2>/dev/null; then
+            git archive FETCH_HEAD | tar -x -C "$RUNNER_TEMP/previo"
+            if diff -rq "$RUNNER_TEMP/previo" "$RUNNER_TEMP/salida" >/dev/null; then
+              echo "Nada que actualizar."
+              exit 0
+            fi
           fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git commit -m "chore: perfil actualizado"
-          git push
+          cd "$RUNNER_TEMP/salida"
+          git init -q -b salida
+          git config user.name "Jhonttt"
+          git config user.email "235171212+Jhonttt@users.noreply.github.com"
+          git add .
+          git commit -q -m "Perfil generado el $(date -u +%F)"
+          git push -q -f "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" salida
