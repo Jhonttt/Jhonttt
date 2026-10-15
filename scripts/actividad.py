@@ -42,10 +42,9 @@ X = 28
 # Lenguajes que linguist confunde: Hack es un dialecto de PHP y en mis
 # repositorios son ficheros PHP de toda la vida.
 EQUIVALENCIAS = {"Hack": "PHP"}
-COLORES_LENGUAJE = {
-    "dark": ["#7c9dff", "#a78bfa", "#5fc4b8", "#e3b341", "#f0883e", "#8b949e"],
-    "light": ["#3b5bdb", "#7048e8", "#0f9488", "#b7791f", "#c2410c", "#6e7781"],
-}
+# Cada lenguaje lleva su color de siempre, el de linguist, que da la propia API.
+# "Otros", y algún lenguaje que no tenga color, va en gris.
+GRIS = {"dark": "#8b949e", "light": "#6e7781"}
 
 # Geometría de la perspectiva (dimétrica): las semanas avanzan hacia la
 # derecha con poca pendiente y los días bajan en diagonal. Más ancha y más baja
@@ -132,20 +131,23 @@ def privadas(desde: dt.date) -> Counter | None:
     return por_dia
 
 
-def lenguajes(usuario: str) -> tuple[Counter, int]:
+def lenguajes(usuario: str) -> tuple[Counter, int, dict[str, str]]:
     d = graphql(
         """query($u: String!) { user(login: $u) {
              repositories(first: 100, ownerAffiliations: OWNER, isFork: false, privacy: PUBLIC) {
-               nodes { name languages(first: 12) { edges { size node { name } } } } } } }""",
+               nodes { name languages(first: 12) { edges { size node { name color } } } } } } }""",
         u=usuario,
     )
     repos = [r for r in d["user"]["repositories"]["nodes"] if r["name"].lower() != usuario.lower()]
     total: Counter = Counter()
+    colores: dict[str, str] = {}
     for repo in repos:
         for borde in repo["languages"]["edges"]:
             nombre = borde["node"]["name"]
+            if borde["node"]["color"]:
+                colores.setdefault(nombre, borde["node"]["color"])
             total[EQUIVALENCIAS.get(nombre, nombre)] += borde["size"]
-    return total, len(repos)
+    return total, len(repos), colores
 
 
 # --- cálculos ----------------------------------------------------------------
@@ -197,11 +199,16 @@ def numero(n: int) -> str:
 # --- la tarjeta --------------------------------------------------------------
 
 def _rayado(lz: Lienzo, tema: str) -> None:
-    """Los rayados de lo privado, uno por cara de la columna (arriba, izquierda, derecha)."""
+    """Los rayados de lo privado, uno por cara de la columna (arriba, izquierda, derecha).
+
+    Del mismo azul que lo público, para que se lea como la misma actividad, pero
+    a rayas: rayas del azul de acento sobre un azul oscuro (o claro, en el tema
+    claro), mientras que lo público es macizo.
+    """
     t = lz.t
     claro = tema == "light"
-    fondo = mezcla(t["acento2"], t["fondo"], 0.72 if claro else 0.6)
-    raya = t["acento2"] if claro else mezcla(t["acento2"], t["fondo"], 0.12)
+    fondo = mezcla(t["acento"], t["fondo"], 0.78 if claro else 0.72)
+    raya = t["acento"]
     factores = (1.0, 0.86, 0.74) if claro else (1.0, 0.8, 0.64)
     for k, f in enumerate(factores):
         lz.defs_raw(
@@ -212,11 +219,11 @@ def _rayado(lz: Lienzo, tema: str) -> None:
 
 def _muestra_privada(lz: Lienzo, x: float, y: float, lado: float = 10) -> None:
     lz.raw(f'<rect x="{f1(x)}" y="{f1(y)}" width="{lado}" height="{lado}" rx="2" fill="url(#priv0)" '
-           f'stroke="{lz.t["acento2"]}" stroke-opacity="0.5" stroke-width="0.8"/>')
+           f'stroke="{lz.t["acento"]}" stroke-opacity="0.5" stroke-width="0.8"/>')
 
 
 def construir(tema: str, ancho: float, publicas: list[tuple[dt.date, int]], priv: Counter | None,
-              total_leng: Counter, n_repos: int) -> str:
+              total_leng: Counter, n_repos: int, colores_leng: dict[str, str]) -> str:
     t = TEMAS[tema]
     movil = es_movil(ancho)
     escala = t["escala"].split(",")
@@ -406,21 +413,21 @@ def construir(tema: str, ancho: float, publicas: list[tuple[dt.date, int]], priv
     lz.raw(lz.texto(X, y0, "Lenguajes", "seccion", "suave", mayus=True))
     lz.raw(lz.texto(ancho - X, y0, f"{n_repos} repos públicos" if movil else f"{n_repos} repositorios públicos",
                     "meta", "suave", anchor="end"))
-    colores = COLORES_LENGUAJE[tema]
+    colores = [colores_leng.get(nombre, GRIS[tema]) for nombre, _ in tramos]
     barra_y, barra_w = y0 + 20, ancho - 2 * X
     lz.defs_raw(f'<clipPath id="barra"><rect x="{X}" y="{barra_y}" width="{barra_w}" height="8" rx="4"/></clipPath>')
     x = float(X)
     segmentos = []
     for i, (nombre, v) in enumerate(tramos):
         ancho_tramo = barra_w * v / suma
-        segmentos.append(f'<rect x="{f1(x)}" y="{barra_y}" width="{f1(ancho_tramo + 0.6)}" height="8" fill="{colores[i % len(colores)]}"/>')
+        segmentos.append(f'<rect x="{f1(x)}" y="{barra_y}" width="{f1(ancho_tramo + 0.6)}" height="8" fill="{colores[i]}"/>')
         x += ancho_tramo
     lz.raw(f'<g clip-path="url(#barra)">{"".join(segmentos)}</g>')
     ly = barra_y + 36
     for fila in filas_leng:
         x = float(X)
         for nombre, porcentaje, i in fila:
-            lz.raw(f'<circle cx="{f1(x + 4)}" cy="{ly - 4}" r="4" fill="{colores[i % len(colores)]}"/>')
+            lz.raw(f'<circle cx="{f1(x + 4)}" cy="{ly - 4}" r="4" fill="{colores[i]}"/>')
             lz.raw(lz.texto(x + 14, ly, nombre, "pequeno-fuerte", "tinta"))
             x += 14 + medir(nombre, "pequeno-fuerte") + 6
             lz.raw(lz.texto(x, ly, porcentaje, "mono-pequeno", "suave"))
@@ -434,8 +441,8 @@ def main() -> None:
     usuario = perfil["usuario"]
     dias = calendario(usuario)
     priv = privadas(dias[0][0])
-    total, n_repos = lenguajes(usuario)
-    guardar_versiones("actividad", lambda tema, ancho: construir(tema, ancho, dias, priv, total, n_repos))
+    total, n_repos, colores = lenguajes(usuario)
+    guardar_versiones("actividad", lambda tema, ancho: construir(tema, ancho, dias, priv, total, n_repos, colores))
     texto = f"actividad: {sum(n for _, n in dias)} contribuciones públicas"
     if priv is not None:
         texto += f" y {sum(priv.get(d, 0) for d, _ in dias)} commits privados"
