@@ -18,6 +18,8 @@ De dónde sale cada cosa:
   que no llega a la rama principal y la API no reparte por días lo privado.
   De esos repositorios solo se publica CUÁNTO y CUÁNDO; ni nombres ni mensajes.
   Sin PERFIL_TOKEN, la tarjeta sale como antes, solo con lo público.
+- Lo privado a lo que ya no tengo acceso (las prácticas), de
+  datos/privadas-extra.json, que se rellena a mano una vez.
 
 En local:
     GITHUB_TOKEN=$(gh auth token) PERFIL_TOKEN=$(gh auth token) python scripts/actividad.py
@@ -32,7 +34,7 @@ import os
 import urllib.request
 from collections import Counter
 
-from comun import TEMAS, Lienzo, datos, es_movil, f1, guardar_versiones, medir, tarjeta
+from comun import DATOS, TEMAS, Lienzo, datos, es_movil, f1, guardar_versiones, medir, tarjeta
 
 API = "https://api.github.com"
 MESES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"]
@@ -128,7 +130,18 @@ def privadas(desde: dt.date) -> Counter | None:
                 if not historia["pageInfo"]["hasNextPage"]:
                     break
                 tras = historia["pageInfo"]["endCursor"]
+    por_dia.update(privadas_extra())
     return por_dia
+
+
+def privadas_extra() -> Counter:
+    """Lo de repositorios privados que el token ya no ve, porque perdí el acceso:
+    datos/privadas-extra.json, con los commits por día."""
+    fichero = DATOS.parent / "privadas-extra.json"
+    if not fichero.exists():
+        return Counter()
+    dias = json.loads(fichero.read_text(encoding="utf-8"))["dias"]
+    return Counter({dt.date.fromisoformat(d): n for d, n in dias.items()})
 
 
 def lenguajes(usuario: str) -> tuple[Counter, int, dict[str, str]]:
