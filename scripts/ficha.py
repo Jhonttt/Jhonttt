@@ -7,7 +7,7 @@
 - 03 Con qué trabajo: el stack por grupos; lo que usé en la empresa, marcado.
 - La barra de contacto: tres segmentos que se colocan uno junto a otro bajo
   la cabecera y se leen como una sola pieza.
-- El interruptor ES | EN, que despliega el perfil en inglés en el README.
+- El selector de idioma: un interruptor ES | EN que lleva de un README al otro.
 
 Cada pieza sale en dos anchos: el de escritorio y el de móvil (ANCHO_MOVIL en
 comun.py), que lo pone todo en una sola columna; y en los dos idiomas
@@ -431,18 +431,17 @@ def contacto(tema: str, clave: str, rotulo: str, valor: str, posicion: int, anch
 
 # --- selector de idioma --------------------------------------------------------
 
-def selector(tema: str, actual: str = "es") -> str:
+def selector(tema: str, actual: str) -> str:
     """Interruptor ES | EN con `actual` encendido. Al cargar, la píldora llega
     deslizándose desde el otro idioma: se lee como el cambio que acaba de pasar.
 
-    Es el botón del <details> que despliega el inglés en el README: una sola
-    imagen, así que da igual en qué mitad se pulse. GitHub no deja cambiarla al
-    abrirlo (no hay CSS), así que se queda en `actual`. Mide lo mismo en
-    escritorio y en móvil.
+    Es una sola imagen y un solo enlace (al otro README), así que da igual en
+    qué mitad se pulse. Mide lo mismo en escritorio y en móvil.
     """
     seg, x_seg, h = 38, 36, 34
     w = x_seg + seg * len(IDIOMAS) + 4
-    lz = Lienzo(w, h, tema, "Idioma: español. Read in English")
+    titulo = "Idioma: español. Read in English" if actual == "es" else "Language: English. Leer en español"
+    lz = Lienzo(w, h, tema, titulo)
     t = lz.t
     lz.raw(f'<rect x="0.5" y="0.5" width="{w - 1}" height="{h - 1}" rx="{f1(h / 2 - 0.5)}" fill="{t["panel"]}" stroke="{t["linea"]}"/>')
     lz.raw(f'<g transform="translate(14 {f1(h / 2 - 7)}) scale(0.875)" fill="none" stroke="{t["suave"]}" stroke-width="1.5" '
@@ -471,7 +470,7 @@ def main() -> None:
         guardar_versiones("sobre-mi", lambda tema, ancho: sobre_mi(tema, perfil, tx, ancho), idioma)
         guardar_versiones("trayectoria", lambda tema, ancho: trayectoria(tema, perfil, tx, ancho), idioma)
         guardar_versiones("stack", lambda tema, ancho: stack(tema, perfil, tx, ancho), idioma)
-    guardar("interruptor-idioma", {tema: selector(tema) for tema in TEMAS})
+        guardar("interruptor-idioma", {tema: selector(tema, idioma) for tema in TEMAS}, idioma)
     # El contacto es igual en los dos idiomas.
     perfil = datos()
     c = perfil["contacto"]

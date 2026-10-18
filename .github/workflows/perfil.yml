@@ -6,7 +6,7 @@
 # - Al cambiar datos/perfil.json, los scripts o las fuentes, para que el cambio
 #   se vea sin tener que generar nada a mano.
 #
-# Todo sale en español y en inglés: el README despliega el inglés en un <details>.
+# Todo sale en español y en inglés (README.md y README.en.md).
 #
 # Los SVG se publican en la rama `salida`, reescrita con un único commit cada
 # vez: main no recibe commits automáticos, y como `salida` no es la rama
