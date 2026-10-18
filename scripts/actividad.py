@@ -8,6 +8,8 @@
 - unas cifras (total, públicas y privadas, rachas, mejor día);
 - el reparto de lenguajes de mis repositorios públicos.
 
+Se pide todo una vez y se dibuja en los dos idiomas.
+
 De dónde sale cada cosa:
 
 - Lo público, del calendario de contribuciones tal y como lo ve cualquiera
@@ -34,11 +36,45 @@ import os
 import urllib.request
 from collections import Counter
 
-from comun import DATOS, TEMAS, Lienzo, datos, es_movil, f1, guardar_versiones, medir, tarjeta
+from comun import DATOS, IDIOMAS, TEMAS, Lienzo, datos, es_movil, f1, guardar_versiones, medir, tarjeta
 
 API = "https://api.github.com"
-MESES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"]
-DIAS = ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"]
+TEXTOS = {
+    "es": {
+        "titulo": "Actividad en GitHub",
+        "tarjeta": "Actividad",
+        "meses": ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"],
+        "dias": ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"],
+        "desc": "{total} contribuciones entre {desde} de {anio_desde} y {hasta} de {anio_hasta}",
+        "desc_privadas": ", {n} de ellas en repositorios privados",
+        "dia": "día", "dias_unidad": "días",
+        "contribuciones": "contribuciones", "activos": "días activos",
+        "publicas": "públicas", "privadas": "privadas",
+        "racha_larga": "racha más larga", "racha_actual": "racha actual",
+        "mejor": "mejor día", "favorito": "día más activo",
+        "menos": "menos", "mas": "más",
+        "lenguajes": "Lenguajes", "repos": "{n} repositorios públicos", "repos_corto": "{n} repos públicos",
+        "otros": "Otros",
+        "miles": ".", "decimal": ",",
+    },
+    "en": {
+        "titulo": "GitHub activity",
+        "tarjeta": "Activity",
+        "meses": ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
+        "dias": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
+        "desc": "{total} contributions between {desde}, {anio_desde} and {hasta}, {anio_hasta}",
+        "desc_privadas": ", {n} of them in private repositories",
+        "dia": "day", "dias_unidad": "days",
+        "contribuciones": "contributions", "activos": "active days",
+        "publicas": "public", "privadas": "private",
+        "racha_larga": "longest streak", "racha_actual": "current streak",
+        "mejor": "best day", "favorito": "busiest day",
+        "menos": "less", "mas": "more",
+        "lenguajes": "Languages", "repos": "{n} public repositories", "repos_corto": "{n} public repos",
+        "otros": "Other",
+        "miles": ",", "decimal": ".",
+    },
+}
 X = 28
 
 # Lenguajes que linguist confunde: Hack es un dialecto de PHP y en mis
@@ -201,12 +237,18 @@ def mezcla(a: str, b: str, t: float) -> str:
     return "#{:02x}{:02x}{:02x}".format(*(round(x + (y - x) * t) for x, y in zip(ca, cb)))
 
 
-def fecha_corta(d: dt.date) -> str:
-    return f"{d.day} {MESES[d.month - 1]}"
+def fecha_corta(d: dt.date, idioma: str) -> str:
+    mes = TEXTOS[idioma]["meses"][d.month - 1]
+    return f"{d.day} {mes}" if idioma == "es" else f"{mes} {d.day}"
 
 
-def numero(n: int) -> str:
-    return f"{n:,}".replace(",", ".")
+def rango(desde: dt.date, hasta: dt.date, idioma: str) -> str:
+    coma = "" if idioma == "es" else ","
+    return f"{fecha_corta(desde, idioma)}{coma} {desde.year} — {fecha_corta(hasta, idioma)}{coma} {hasta.year}"
+
+
+def numero(n: int, idioma: str) -> str:
+    return f"{n:,}".replace(",", TEXTOS[idioma]["miles"])
 
 
 # --- la tarjeta --------------------------------------------------------------
@@ -235,9 +277,10 @@ def _muestra_privada(lz: Lienzo, x: float, y: float, lado: float = 10) -> None:
            f'stroke="{lz.t["acento"]}" stroke-opacity="0.5" stroke-width="0.8"/>')
 
 
-def construir(tema: str, ancho: float, publicas: list[tuple[dt.date, int]], priv: Counter | None,
+def construir(tema: str, idioma: str, ancho: float, publicas: list[tuple[dt.date, int]], priv: Counter | None,
               total_leng: Counter, n_repos: int, colores_leng: dict[str, str]) -> str:
     t = TEMAS[tema]
+    tx = TEXTOS[idioma]
     movil = es_movil(ancho)
     escala = t["escala"].split(",")
     con_privadas = priv is not None
@@ -266,11 +309,11 @@ def construir(tema: str, ancho: float, publicas: list[tuple[dt.date, int]], priv
     suma = sum(total_leng.values()) or 1
     principales = total_leng.most_common(5)
     resto = suma - sum(v for _, v in principales)
-    tramos = principales + ([("Otros", resto)] if resto > 0 else [])
+    tramos = principales + ([(tx["otros"], resto)] if resto > 0 else [])
     filas_leng: list[list[tuple[str, str, int]]] = [[]]
     xx = 0.0
     for i, (nombre, v) in enumerate(tramos):
-        porcentaje = f"{100 * v / suma:.1f}%".replace(".", ",")
+        porcentaje = f"{100 * v / suma:.1f}%".replace(".", tx["decimal"])
         w = 14 + medir(nombre, "pequeno-fuerte") + 6 + medir(porcentaje, "mono-pequeno")
         if filas_leng[-1] and xx + w > ancho - 2 * X:
             filas_leng.append([])
@@ -283,11 +326,12 @@ def construir(tema: str, ancho: float, publicas: list[tuple[dt.date, int]], priv
     desde, hasta = dias[0][0], dias[-1][0]
     total = sum(n for _, n in dias)
     total_priv = sum(priv.get(d, 0) for d, _ in publicas)
-    desc = f"{total} contribuciones entre {fecha_corta(desde)} de {desde.year} y {fecha_corta(hasta)} de {hasta.year}"
+    desc = tx["desc"].format(total=total, desde=fecha_corta(desde, idioma), anio_desde=desde.year,
+                             hasta=fecha_corta(hasta, idioma), anio_hasta=hasta.year)
     if con_privadas:
-        desc += f", {total_priv} de ellas en repositorios privados"
-    lz = Lienzo(ancho, alto, tema, "Actividad en GitHub", desc + ".")
-    tarjeta(lz, "04", "Actividad", f"{fecha_corta(desde)} {desde.year} — {fecha_corta(hasta)} {hasta.year}")
+        desc += tx["desc_privadas"].format(n=total_priv)
+    lz = Lienzo(ancho, alto, tema, tx["titulo"], desc + ".")
+    tarjeta(lz, "04", tx["tarjeta"], rango(desde, hasta, idioma))
     if con_privadas:
         _rayado(lz, tema)
 
@@ -319,7 +363,7 @@ def construir(tema: str, ancho: float, publicas: list[tuple[dt.date, int]], priv
         color = escala[lv]
         tonos = (color, sombra(color, 0.80 if tema == "dark" else 0.86), sombra(color, 0.64 if tema == "dark" else 0.74))
         if con_privadas:
-            titulo = f"<title>{fecha.isoformat()}: {n_pub} públicas · {n_priv} privadas</title>"
+            titulo = f"<title>{fecha.isoformat()}: {n_pub} {tx['publicas']} · {n_priv} {tx['privadas']}</title>"
         else:
             titulo = f"<title>{fecha.isoformat()}: {n_pub}</title>"
         if n_pub + n_priv == 0:
@@ -366,7 +410,7 @@ def construir(tema: str, ancho: float, publicas: list[tuple[dt.date, int]], priv
             x, y = punto(w + 0.1, 8.0, 0)
             matriz = (f"{EJE_U[0] * escala_texto:.4f} {EJE_U[1] * escala_texto:.4f} "
                       f"{EJE_V[0] * escala_texto:.4f} {EJE_V[1] * escala_texto:.4f} {f1(x)} {f1(y)}")
-            lz.raw(lz.texto(0, 0, MESES[fecha.month - 1], "mono-pequeno", "suave", extra=f' transform="matrix({matriz})"'))
+            lz.raw(lz.texto(0, 0, tx["meses"][fecha.month - 1], "mono-pequeno", "suave", extra=f' transform="matrix({matriz})"'))
 
     # Cifras: donde el isométrico deja hueco en escritorio, o arriba en móvil.
     viva, larga = rachas(dias)
@@ -375,22 +419,22 @@ def construir(tema: str, ancho: float, publicas: list[tuple[dt.date, int]], priv
     por_dia = Counter()
     for fecha, n in dias:
         por_dia[fecha.weekday()] += n
-    favorito = DIAS[por_dia.most_common(1)[0][0]] if total else "—"
-    dias_txt = lambda n: "día" if n == 1 else "días"
+    favorito = tx["dias"][por_dia.most_common(1)[0][0]] if total else "—"
+    dias_txt = lambda n: tx["dia"] if n == 1 else tx["dias_unidad"]
     cifras = [
-        (numero(total), "", "contribuciones", None),
-        (str(activos), "", "días activos", None),
+        (numero(total, idioma), "", tx["contribuciones"], None),
+        (str(activos), "", tx["activos"], None),
     ]
     if con_privadas:
         cifras += [
-            (numero(total - total_priv), "", "públicas", "publica"),
-            (numero(total_priv), "", "privadas", "privada"),
+            (numero(total - total_priv, idioma), "", tx["publicas"], "publica"),
+            (numero(total_priv, idioma), "", tx["privadas"], "privada"),
         ]
     cifras += [
-        (str(larga), dias_txt(larga), "racha más larga", None),
-        (str(viva), dias_txt(viva), "racha actual", None),
-        (fecha_corta(mejor_fecha), "", f"mejor día · {mejor_n}", None),
-        (favorito, "", "día más activo", None),
+        (str(larga), dias_txt(larga), tx["racha_larga"], None),
+        (str(viva), dias_txt(viva), tx["racha_actual"], None),
+        (fecha_corta(mejor_fecha, idioma), "", f"{tx['mejor']} · {mejor_n}", None),
+        (favorito, "", tx["favorito"], None),
     ]
     for i, (valor, unidad, rotulo, muestra) in enumerate(cifras):
         x = x_cifras + (i % 2) * col_cifras
@@ -409,22 +453,22 @@ def construir(tema: str, ancho: float, publicas: list[tuple[dt.date, int]], priv
 
     # Leyenda, bajo el calendario.
     x = 40 if not movil else X
-    lz.raw(lz.texto(x, ly + 9, "menos", "mono-pequeno", "suave"))
-    x += medir("menos", "mono-pequeno") + 8
+    lz.raw(lz.texto(x, ly + 9, tx["menos"], "mono-pequeno", "suave"))
+    x += medir(tx["menos"], "mono-pequeno") + 8
     for color in escala:
         lz.raw(f'<rect x="{f1(x)}" y="{ly}" width="10" height="10" rx="2" fill="{color}"/>')
         x += 13
-    lz.raw(lz.texto(x + 5, ly + 9, "más", "mono-pequeno", "suave"))
+    lz.raw(lz.texto(x + 5, ly + 9, tx["mas"], "mono-pequeno", "suave"))
     if con_privadas:
-        x += 5 + medir("más", "mono-pequeno") + 22
+        x += 5 + medir(tx["mas"], "mono-pequeno") + 22
         _muestra_privada(lz, x, ly)
-        lz.raw(lz.texto(x + 16, ly + 9, "privadas", "mono-pequeno", "suave"))
+        lz.raw(lz.texto(x + 16, ly + 9, tx["privadas"], "mono-pequeno", "suave"))
 
     # Lenguajes de los repositorios públicos.
     y0 = y0_leng
     lz.raw(f'<line x1="{X}" y1="{y0 - 22.5}" x2="{ancho - X}" y2="{y0 - 22.5}" stroke="{t["linea"]}"/>')
-    lz.raw(lz.texto(X, y0, "Lenguajes", "seccion", "suave", mayus=True))
-    lz.raw(lz.texto(ancho - X, y0, f"{n_repos} repos públicos" if movil else f"{n_repos} repositorios públicos",
+    lz.raw(lz.texto(X, y0, tx["lenguajes"], "seccion", "suave", mayus=True))
+    lz.raw(lz.texto(ancho - X, y0, tx["repos_corto" if movil else "repos"].format(n=n_repos),
                     "meta", "suave", anchor="end"))
     colores = [colores_leng.get(nombre, GRIS[tema]) for nombre, _ in tramos]
     barra_y, barra_w = y0 + 20, ancho - 2 * X
@@ -455,7 +499,9 @@ def main() -> None:
     dias = calendario(usuario)
     priv = privadas(dias[0][0])
     total, n_repos, colores = lenguajes(usuario)
-    guardar_versiones("actividad", lambda tema, ancho: construir(tema, ancho, dias, priv, total, n_repos, colores))
+    for idioma in IDIOMAS:
+        guardar_versiones("actividad", lambda tema, ancho: construir(tema, idioma, ancho, dias, priv, total, n_repos, colores),
+                          idioma)
     texto = f"actividad: {sum(n for _, n in dias)} contribuciones públicas"
     if priv is not None:
         texto += f" y {sum(priv.get(d, 0) for d, _ in dias)} commits privados"

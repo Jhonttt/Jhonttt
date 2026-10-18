@@ -1,0 +1,85 @@
+{
+  "_comentario": "English layer over perfil.json: only the texts that change. Dictionaries merge key by key and lists of objects item by item (same order as in perfil.json); anything else replaces the Spanish value.",
+  "saludo": "Hi, I'm",
+  "titular": "Second-year Cross-Platform Application Development student",
+  "ubicacion": {
+    "texto": "Collado Villalba, Community of Madrid"
+  },
+  "banner": [
+    [
+      "lugar",
+      "Collado Villalba, Madrid"
+    ],
+    [
+      "estudios",
+      "IES Lázaro Cárdenas"
+    ],
+    [
+      "idiomas",
+      "Spanish · English"
+    ]
+  ],
+  "sobre_mi": {
+    "texto": [
+      "I finished the Web Application Development programme and I'm now in the second year of Cross-Platform Application Development at IES Lázaro Cárdenas. I'm most interested in full stack development: I enjoy learning new technologies and putting them into practice in my own projects.",
+      "I'm curious about how things work, I like learning on my own and I keep getting better with every project."
+    ],
+    "datos": [
+      [
+        "based in",
+        "Collado Villalba, Community of Madrid"
+      ],
+      [
+        "now",
+        "2nd year of DAM · IES Lázaro Cárdenas"
+      ],
+      [
+        "qualification",
+        "Higher Technician in Web Application Development"
+      ],
+      [
+        "languages",
+        "Spanish, native · English, limited working proficiency"
+      ]
+    ]
+  },
+  "trayectoria": [
+    {
+      "titulo": "Cross-Platform Application Development",
+      "lugar": "IES Lázaro Cárdenas · 2nd year",
+      "texto": "Higher vocational training programme I'm taking now, after completing Web Application Development."
+    },
+    {
+      "titulo": "Web Development Intern",
+      "lugar": "Alebat · Collado Villalba",
+      "texto": "500 hours of workplace training. I solved issues on the company's real projects, with branches and pull requests reviewed before merging, GitHub Projects, Conventional Commits, Husky, ESLint and Prettier."
+    },
+    {
+      "titulo": "Web Application Development",
+      "lugar": "IES Lázaro Cárdenas · Higher vocational training",
+      "texto": "Full stack training: programming, databases, client-side and server-side development, interface design, deployment, computer systems and cloud architectures. I took part in entrepreneurship and project pitch competitions, developing and presenting a project made in IPE.",
+      "etiquetas": [
+        "Final grade 9.29 / 10",
+        "With honours"
+      ]
+    }
+  ],
+  "leyenda_empresa": "used at Alebat",
+  "stack": [
+    {
+      "grupo": "languages"
+    },
+    {
+      "grupo": "frontend"
+    },
+    {
+      "grupo": "backend & data"
+    },
+    {
+      "grupo": "tools"
+    },
+    {
+      "grupo": "workflow"
+    }
+  ]
+}

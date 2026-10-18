@@ -7,9 +7,11 @@
 - 03 Con qué trabajo: el stack por grupos; lo que usé en la empresa, marcado.
 - La barra de contacto: tres segmentos que se colocan uno junto a otro bajo
   la cabecera y se leen como una sola pieza.
+- El selector de idioma: un interruptor ES | EN que lleva de un README al otro.
 
 Cada pieza sale en dos anchos: el de escritorio y el de móvil (ANCHO_MOVIL en
-comun.py), que lo pone todo en una sola columna.
+comun.py), que lo pone todo en una sola columna; y en los dos idiomas
+(IDIOMAS en comun.py).
 
 Uso: python scripts/ficha.py
 """
@@ -18,10 +20,33 @@ from __future__ import annotations
 
 import datetime as dt
 
-from comun import Lienzo, datos, envolver, es_movil, f1, guardar_versiones, icono, medir, tarjeta
+from comun import IDIOMAS, TEMAS, Lienzo, datos, envolver, es_movil, f1, guardar, guardar_versiones, icono, medir, tarjeta
 
 X = 28  # margen lateral de todas las tarjetas
-MESES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"]
+
+# Los textos fijos de las tarjetas; los del perfil vienen de los JSON.
+TEXTOS = {
+    "es": {
+        "sobre_mi": "Sobre mí",
+        "trayectoria": "Trayectoria",
+        "stack": "Con qué trabajo",
+        "meses": ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"],
+        "en_curso": "hoy",
+        "hoy": "hoy",
+        "tipos": {"estudios": "estudios", "empresa": "empresa"},
+        "idioma": "Idioma: español. Cambiar a inglés",
+    },
+    "en": {
+        "sobre_mi": "About me",
+        "trayectoria": "Timeline",
+        "stack": "What I work with",
+        "meses": ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
+        "en_curso": "present",
+        "hoy": "today",
+        "tipos": {"estudios": "education", "empresa": "work"},
+        "idioma": "Language: English. Switch to Spanish",
+    },
+}
 
 # Iconos propios, de trazo, para lo que no tiene icono en simple-icons (24x24).
 ICONOS_PROPIOS = {
@@ -43,7 +68,7 @@ def separador(lz: Lienzo, y: float) -> None:
 
 # --- 01 Sobre mí -------------------------------------------------------------
 
-def sobre_mi(tema: str, perfil: dict, ancho: float) -> str:
+def sobre_mi(tema: str, perfil: dict, tx: dict, ancho: float) -> str:
     bloque = perfil["sobre_mi"]
     movil = es_movil(ancho)
     # En escritorio, los datos van en una columna a la derecha; en móvil, debajo.
@@ -62,8 +87,8 @@ def sobre_mi(tema: str, perfil: dict, ancho: float) -> str:
     else:
         alto = 56 + 34 + max(alto_texto, alto_datos) + 34
 
-    lz = Lienzo(ancho, alto, tema, "Sobre mí", " ".join(bloque["texto"]))
-    tarjeta(lz, "01", "Sobre mí")
+    lz = Lienzo(ancho, alto, tema, tx["sobre_mi"], " ".join(bloque["texto"]))
+    tarjeta(lz, "01", tx["sobre_mi"])
     y = 56 + 34 + 12
     for i, lineas in enumerate(parrafos):
         for linea in lineas:
@@ -97,21 +122,22 @@ def _mes(texto: str | None, hoy: dt.date) -> dt.date:
     return dt.date(int(a), int(m), 1)
 
 
-def _rango(etapa: dict) -> str:
+def _rango(etapa: dict, tx: dict) -> str:
+    meses = tx["meses"]
     d = _mes(etapa["desde"], dt.date.today())
     if etapa.get("solo_anio"):
         ini = str(d.year)
     else:
-        ini = f"{MESES[d.month - 1]} {d.year}"
+        ini = f"{meses[d.month - 1]} {d.year}"
     if not etapa.get("hasta"):
-        return f"{ini} — hoy"
+        return f"{ini} — {tx['en_curso']}"
     h = _mes(etapa["hasta"], dt.date.today())
     if h.year == d.year and not etapa.get("solo_anio"):
-        return f"{MESES[d.month - 1]} — {MESES[h.month - 1]} {h.year}"
-    return f"{ini} — {MESES[h.month - 1]} {h.year}"
+        return f"{meses[d.month - 1]} — {meses[h.month - 1]} {h.year}"
+    return f"{ini} — {meses[h.month - 1]} {h.year}"
 
 
-def _eje(lz: Lienzo, eje_x0: float, eje_x1: float, y_anios: float, y0: float, y1: float, y_hoy: float):
+def _eje(lz: Lienzo, eje_x0: float, eje_x1: float, y_anios: float, y0: float, y1: float, y_hoy: float, hoy_txt: str):
     """Dibuja el eje de tiempo (una línea por año y la marca de hoy) y devuelve
     la función que pasa de una fecha a su x."""
     t = lz.t
@@ -130,7 +156,7 @@ def _eje(lz: Lienzo, eje_x0: float, eje_x1: float, y_anios: float, y0: float, y1
         lz.raw(lz.texto(x, y_anios, str(anio), "mono-pequeno", "suave", anchor="middle"))
     xh = x_de(dt.date.today())
     lz.raw(f'<line x1="{f1(xh)}" y1="{y0 + 18}" x2="{f1(xh)}" y2="{f1(y1)}" stroke="{t["acento"]}" stroke-width="1" stroke-dasharray="2 3" opacity="0.7"/>')
-    lz.raw(lz.texto(xh, y_hoy, "hoy", "mono-pequeno", "acento", anchor="middle"))
+    lz.raw(lz.texto(xh, y_hoy, hoy_txt, "mono-pequeno", "acento", anchor="middle"))
     return x_de, hoy
 
 
@@ -187,9 +213,9 @@ def _etiquetas(lz: Lienzo, x0: float, yy: float, filas: list[list[str]]) -> None
         yy += 28
 
 
-def trayectoria(tema: str, perfil: dict, ancho: float) -> str:
+def trayectoria(tema: str, perfil: dict, tx: dict, ancho: float) -> str:
     if es_movil(ancho):
-        return _trayectoria_movil(tema, perfil, ancho)
+        return _trayectoria_movil(tema, perfil, tx, ancho)
     etapas = perfil["trayectoria"]
     eje_x0, eje_x1 = 604, ancho - X - 4
     col_texto = 196
@@ -205,16 +231,16 @@ def trayectoria(tema: str, perfil: dict, ancho: float) -> str:
     y_filas = 56 + 50
     alto = y_filas + sum(a + 38 for *_, a in filas) - 38 + 44
 
-    lz = Lienzo(ancho, alto, tema, "Trayectoria",
-                "; ".join(f"{e['titulo']}, {e['lugar']} ({_rango(e)})" for e in etapas))
-    tarjeta(lz, "02", "Trayectoria")
-    x_de, hoy = _eje(lz, eje_x0, eje_x1, 86, 78, alto - 40, alto - 24)
+    lz = Lienzo(ancho, alto, tema, tx["trayectoria"],
+                "; ".join(f"{e['titulo']}, {e['lugar']} ({_rango(e, tx)})" for e in etapas))
+    tarjeta(lz, "02", tx["trayectoria"])
+    x_de, hoy = _eje(lz, eje_x0, eje_x1, 86, 78, alto - 40, alto - 24, tx["hoy"])
 
     y = y_filas
     for i, (etapa, lineas, etiquetas, alto_fila) in enumerate(filas):
         actual = not etapa.get("hasta")
-        lz.raw(lz.texto(X, y + 16, _rango(etapa), "etiqueta", "tinta" if actual else "suave"))
-        lz.raw(lz.texto(X, y + 36, etapa["tipo"], "mono-pequeno", "acento" if actual else "suave", mayus=True))
+        lz.raw(lz.texto(X, y + 16, _rango(etapa, tx), "etiqueta", "tinta" if actual else "suave"))
+        lz.raw(lz.texto(X, y + 36, tx["tipos"][etapa["tipo"]], "mono-pequeno", "acento" if actual else "suave", mayus=True))
 
         lz.raw(lz.texto(col_texto, y + 16, etapa["titulo"], "dato", "tinta"))
         lz.raw(lz.texto(col_texto, y + 37, etapa["lugar"], "pequeno", "suave"))
@@ -233,7 +259,7 @@ def trayectoria(tema: str, perfil: dict, ancho: float) -> str:
     return lz.render()
 
 
-def _trayectoria_movil(tema: str, perfil: dict, ancho: float) -> str:
+def _trayectoria_movil(tema: str, perfil: dict, tx: dict, ancho: float) -> str:
     """En móvil, el eje de tiempo va arriba, con una barra por etapa, y las
     etapas debajo, a todo el ancho. Cada etapa lleva su número en las dos partes."""
     etapas = perfil["trayectoria"]
@@ -251,11 +277,11 @@ def _trayectoria_movil(tema: str, perfil: dict, ancho: float) -> str:
     y_filas = y_eje + alto_eje + 26
     alto = y_filas + sum(a + 38 for *_, a in filas) - 38 + 28
 
-    lz = Lienzo(ancho, alto, tema, "Trayectoria",
-                "; ".join(f"{e['titulo']}, {e['lugar']} ({_rango(e)})" for e in etapas))
-    tarjeta(lz, "02", "Trayectoria")
+    lz = Lienzo(ancho, alto, tema, tx["trayectoria"],
+                "; ".join(f"{e['titulo']}, {e['lugar']} ({_rango(e, tx)})" for e in etapas))
+    tarjeta(lz, "02", tx["trayectoria"])
     y_fin_eje = y_eje + alto_eje - 22
-    x_de, hoy = _eje(lz, x_num + 4, ancho - X - 4, y_eje + 8, y_eje, y_fin_eje, y_fin_eje + 16)
+    x_de, hoy = _eje(lz, x_num + 4, ancho - X - 4, y_eje + 8, y_eje, y_fin_eje, y_fin_eje + 16, tx["hoy"])
     for i, etapa in enumerate(etapas):
         yb = y_eje + 26 + i * 22
         lz.raw(lz.texto(X, yb + 7, f"{i + 1:02d}", "mono-pequeno", "acento" if not etapa.get("hasta") else "suave"))
@@ -265,8 +291,8 @@ def _trayectoria_movil(tema: str, perfil: dict, ancho: float) -> str:
     y = y_filas
     for i, (etapa, lineas, etiquetas, alto_fila) in enumerate(filas):
         actual = not etapa.get("hasta")
-        lz.raw(lz.texto(X, y + 10, f"{i + 1:02d} · {etapa['tipo'].upper()}", "mono-pequeno", "acento" if actual else "suave"))
-        lz.raw(lz.texto(ancho - X, y + 10, _rango(etapa), "etiqueta", "tinta" if actual else "suave", anchor="end"))
+        lz.raw(lz.texto(X, y + 10, f"{i + 1:02d} · {tx['tipos'][etapa['tipo']].upper()}", "mono-pequeno", "acento" if actual else "suave"))
+        lz.raw(lz.texto(ancho - X, y + 10, _rango(etapa, tx), "etiqueta", "tinta" if actual else "suave", anchor="end"))
         lz.raw(lz.texto(X, y + 38, etapa["titulo"], "dato", "tinta"))
         lz.raw(lz.texto(X, y + 58, etapa["lugar"], "pequeno", "suave"))
         yy = y + 84
@@ -308,7 +334,7 @@ def _chip(lz: Lienzo, x: float, y: float, item: dict) -> float:
     return w
 
 
-def stack(tema: str, perfil: dict, ancho: float) -> str:
+def stack(tema: str, perfil: dict, tx: dict, ancho: float) -> str:
     grupos = perfil["stack"]
     movil = es_movil(ancho)
     # En móvil, el nombre del grupo va encima de sus chips y no a la izquierda.
@@ -332,10 +358,10 @@ def stack(tema: str, perfil: dict, ancho: float) -> str:
     if movil:
         alto += 26  # la leyenda, que en móvil no cabe en la cabecera
 
-    lz = Lienzo(ancho, alto, tema, "Con qué trabajo",
+    lz = Lienzo(ancho, alto, tema, tx["stack"],
                 ", ".join(i["nombre"] for g in grupos for i in g["items"]) + ".")
     t = lz.t
-    tarjeta(lz, "03", "Con qué trabajo")
+    tarjeta(lz, "03", tx["stack"])
     # Leyenda: qué significa el borde de color. En la cabecera o, en móvil, al pie.
     leyenda = perfil.get("leyenda_empresa", "usado en la empresa")
     w_ley = medir(leyenda, "meta")
@@ -405,11 +431,49 @@ def contacto(tema: str, clave: str, rotulo: str, valor: str, posicion: int, anch
     return lz.render()
 
 
+# --- selector de idioma --------------------------------------------------------
+
+def selector(tema: str, actual: str, tx: dict) -> str:
+    """Interruptor ES | EN con `actual` encendido. Al cargar, la píldora llega
+    deslizándose desde el otro idioma: se lee como el cambio que acaba de pasar.
+
+    Es una sola imagen y un solo enlace (al otro README), así que da igual en
+    qué mitad se pulse. Mide lo mismo en escritorio y en móvil.
+    """
+    seg, x_seg, h = 38, 36, 34
+    w = x_seg + seg * len(IDIOMAS) + 4
+    lz = Lienzo(w, h, tema, tx["idioma"])
+    t = lz.t
+    lz.raw(f'<rect x="0.5" y="0.5" width="{w - 1}" height="{h - 1}" rx="{f1(h / 2 - 0.5)}" fill="{t["panel"]}" stroke="{t["linea"]}"/>')
+    lz.raw(f'<g transform="translate(14 {f1(h / 2 - 7)}) scale(0.875)" fill="none" stroke="{t["suave"]}" stroke-width="1.5" '
+           f'stroke-linecap="round" stroke-linejoin="round">{ICONOS_CONTACTO["web"]}</g>')
+
+    i_actual = IDIOMAS.index(actual)
+    i_previo = 1 - i_actual
+    # El retraso va dentro de keyTimes, como en la actividad: sin animación se ve
+    # el estado final, nunca el de partida.
+    dur, kt, curva = "0.9s", "0;0.35;1", ' calcMode="spline" keySplines="0 0 1 1;0.3 0.7 0.2 1"'
+    x_fin, x_ini = x_seg + seg * i_actual, x_seg + seg * i_previo
+    lz.raw(f'<rect x="{x_fin}" y="4" width="{seg}" height="{h - 8}" rx="{f1((h - 8) / 2)}" fill="{t["acento"]}">'
+           f'<animate attributeName="x" values="{x_ini};{x_ini};{x_fin}" keyTimes="{kt}" dur="{dur}" fill="freeze"{curva}/></rect>')
+    for i, idioma in enumerate(IDIOMAS):
+        fin, ini = ("fondo", "suave") if i == i_actual else ("suave", "fondo")
+        anim = (f'<animate attributeName="fill" values="{t[ini]};{t[ini]};{t[fin]}" keyTimes="0;0.55;1" '
+                f'dur="{dur}" fill="freeze"/>')
+        texto = lz.texto(x_seg + seg * i + seg / 2, h / 2 + 4, idioma.upper(), "seccion", fin, anchor="middle")
+        lz.raw(texto.replace("</text>", f"{anim}</text>"))
+    return lz.render()
+
+
 def main() -> None:
+    for idioma in IDIOMAS:
+        perfil, tx = datos(idioma), TEXTOS[idioma]
+        guardar_versiones("sobre-mi", lambda tema, ancho: sobre_mi(tema, perfil, tx, ancho), idioma)
+        guardar_versiones("trayectoria", lambda tema, ancho: trayectoria(tema, perfil, tx, ancho), idioma)
+        guardar_versiones("stack", lambda tema, ancho: stack(tema, perfil, tx, ancho), idioma)
+        guardar("idioma", {tema: selector(tema, idioma, tx) for tema in TEMAS}, idioma)
+    # El contacto es igual en los dos idiomas.
     perfil = datos()
-    guardar_versiones("sobre-mi", lambda tema, ancho: sobre_mi(tema, perfil, ancho))
-    guardar_versiones("trayectoria", lambda tema, ancho: trayectoria(tema, perfil, ancho))
-    guardar_versiones("stack", lambda tema, ancho: stack(tema, perfil, ancho))
     c = perfil["contacto"]
     segmentos = [
         ("web", "Portfolio", c["web"].removeprefix("https://").rstrip("/")),
@@ -420,7 +484,7 @@ def main() -> None:
         guardar_versiones(f"contacto-{clave}",
                           lambda tema, ancho, clave=clave, rotulo=rotulo, valor=valor, i=i:
                           contacto(tema, clave, rotulo, valor, i, ancho))
-    print("sobre-mi, trayectoria, stack y contacto generados")
+    print("sobre-mi, trayectoria, stack, idioma y contacto generados")
 
 
 if __name__ == "__main__":

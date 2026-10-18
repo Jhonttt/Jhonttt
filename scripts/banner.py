@@ -27,7 +27,7 @@ import math
 import numpy as np
 from PIL import Image, ImageDraw
 
-from comun import ANCHO, ANCHO_MOVIL, FUENTES, TEMAS, Lienzo, datos, envolver, f1, guardar
+from comun import ANCHO, ANCHO_MOVIL, FUENTES, IDIOMAS, TEMAS, Lienzo, datos, envolver, f1, guardar, sufijo
 
 PASO = 8.0            # separación de la retícula de puntos, en px
 RADIO = 1.55          # radio de cada punto
@@ -247,11 +247,13 @@ def construir(tema: str, perfil: dict, puntos: np.ndarray, geo: dict) -> str:
 
 
 def main() -> None:
-    perfil = datos()
-    for nombre, geo in (("banner", ESCRITORIO), ("banner-movil", {**MOVIL, "alto": alto_movil(perfil)})):
-        puntos = puntos_del_mapa(perfil, geo)
-        guardar(nombre, {tema: construir(tema, perfil, puntos, geo) for tema in TEMAS})
-        print(f"{nombre}: {len(puntos)} puntos de tierra")
+    for idioma in IDIOMAS:
+        perfil = datos(idioma)
+        # En móvil el alto depende de lo que ocupe el texto, que cambia con el idioma.
+        for nombre, geo in (("banner", ESCRITORIO), ("banner-movil", {**MOVIL, "alto": alto_movil(perfil)})):
+            puntos = puntos_del_mapa(perfil, geo)
+            guardar(nombre, {tema: construir(tema, perfil, puntos, geo) for tema in TEMAS}, idioma)
+            print(f"{nombre}{sufijo(idioma)}: {len(puntos)} puntos de tierra")
 
 
 if __name__ == "__main__":

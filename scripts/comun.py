@@ -28,6 +28,9 @@ ASSETS = RAIZ / "assets"
 FUENTES = ASSETS / "source"
 CACHE_ICONOS = FUENTES / "iconos"
 DATOS = RAIZ / "datos" / "perfil.json"
+# El perfil sale en dos idiomas. El español es el de siempre; el inglés es una
+# capa encima: datos/perfil.en.json solo trae los textos que cambian.
+IDIOMAS = ("es", "en")
 
 # Ancho de diseño de todas las piezas: el que ocupa la columna del README en
 # escritorio, para que se vean a tamaño real y no reescaladas.
@@ -178,8 +181,29 @@ def _subconjunto(clave: str, caracteres: str) -> str:
 
 # --- utilidades ------------------------------------------------------------
 
-def datos() -> dict:
-    return json.loads(DATOS.read_text(encoding="utf-8"))
+def _mezclar(base, encima):
+    """`encima` sobre `base`: los diccionarios se mezclan clave a clave y las
+    listas de diccionarios elemento a elemento; lo demás se sustituye."""
+    if isinstance(base, dict) and isinstance(encima, dict):
+        return {k: _mezclar(v, encima[k]) if k in encima else v for k, v in base.items()} | {
+            k: v for k, v in encima.items() if k not in base}
+    if (isinstance(base, list) and isinstance(encima, list) and len(base) == len(encima)
+            and all(isinstance(x, dict) for x in base + encima)):
+        return [_mezclar(b, e) for b, e in zip(base, encima)]
+    return encima
+
+
+def datos(idioma: str = "es") -> dict:
+    perfil = json.loads(DATOS.read_text(encoding="utf-8"))
+    if idioma == "es":
+        return perfil
+    capa = DATOS.with_name(f"perfil.{idioma}.json")
+    return _mezclar(perfil, json.loads(capa.read_text(encoding="utf-8")))
+
+
+def sufijo(idioma: str) -> str:
+    """Lo que lleva el nombre de un SVG según el idioma: nada en español, -en en inglés."""
+    return "" if idioma == "es" else f"-{idioma}"
 
 
 def esc(texto) -> str:
@@ -206,21 +230,22 @@ def icono(slug: str) -> tuple[str, str]:
     return (titulo.group(1) if titulo else slug), trazado.group(1)
 
 
-def guardar(nombre: str, svg_por_tema: dict[str, str]) -> None:
-    """Escribe assets/<nombre>-dark.svg y assets/<nombre>-light.svg."""
+def guardar(nombre: str, svg_por_tema: dict[str, str], idioma: str = "es") -> None:
+    """Escribe assets/<nombre>-dark.svg y assets/<nombre>-light.svg; en inglés,
+    assets/<nombre>-en-dark.svg y assets/<nombre>-en-light.svg."""
     ASSETS.mkdir(parents=True, exist_ok=True)
     for tema, svg in svg_por_tema.items():
-        (ASSETS / f"{nombre}-{tema}.svg").write_text(svg, encoding="utf-8", newline="\n")
+        (ASSETS / f"{nombre}{sufijo(idioma)}-{tema}.svg").write_text(svg, encoding="utf-8", newline="\n")
 
 
-def guardar_versiones(nombre: str, construir) -> None:
+def guardar_versiones(nombre: str, construir, idioma: str = "es") -> None:
     """Las cuatro versiones de una pieza: escritorio y móvil, en los dos temas.
 
     `construir(tema, ancho)` devuelve el SVG; la de móvil se guarda como
-    <nombre>-movil-<tema>.svg.
+    <nombre>-movil-<tema>.svg (o <nombre>-movil-en-<tema>.svg en inglés).
     """
-    guardar(nombre, {tema: construir(tema, ANCHO) for tema in TEMAS})
-    guardar(f"{nombre}-movil", {tema: construir(tema, ANCHO_MOVIL) for tema in TEMAS})
+    guardar(nombre, {tema: construir(tema, ANCHO) for tema in TEMAS}, idioma)
+    guardar(f"{nombre}-movil", {tema: construir(tema, ANCHO_MOVIL) for tema in TEMAS}, idioma)
 
 
 # --- el lienzo -------------------------------------------------------------

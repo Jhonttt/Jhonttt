@@ -1,8 +1,12 @@
 # Vuelve a dibujar el perfil.
 #
-# - Cada día, para que el calendario y los lenguajes estén al día.
+# - Cada hora, para que el calendario y los lenguajes estén al día. Solo se
+#   publica si algo ha cambiado. GitHub puede retrasar las ejecuciones
+#   programadas unos minutos cuando hay mucha carga.
 # - Al cambiar datos/perfil.json, los scripts o las fuentes, para que el cambio
 #   se vea sin tener que generar nada a mano.
+#
+# Todo sale en español y en inglés (README.md y README.en.md).
 #
 # Los SVG se publican en la rama `salida`, reescrita con un único commit cada
 # vez: main no recibe commits automáticos, y como `salida` no es la rama
@@ -17,7 +21,7 @@ name: Perfil
 
 on:
   schedule:
-    - cron: "17 4 * * *"
+    - cron: "17 * * * *"
   push:
     branches: [main]
     paths:
