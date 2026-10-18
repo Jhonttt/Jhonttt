@@ -471,7 +471,7 @@ def main() -> None:
         guardar_versiones("sobre-mi", lambda tema, ancho: sobre_mi(tema, perfil, tx, ancho), idioma)
         guardar_versiones("trayectoria", lambda tema, ancho: trayectoria(tema, perfil, tx, ancho), idioma)
         guardar_versiones("stack", lambda tema, ancho: stack(tema, perfil, tx, ancho), idioma)
-    guardar("idioma", {tema: selector(tema) for tema in TEMAS})
+    guardar("interruptor-idioma", {tema: selector(tema) for tema in TEMAS})
     # El contacto es igual en los dos idiomas.
     perfil = datos()
     c = perfil["contacto"]

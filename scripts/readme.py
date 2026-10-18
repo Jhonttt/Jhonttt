@@ -76,7 +76,7 @@ def picture(usuario: str, nombre: str, alt: str, ancho: str = "100%", idioma: st
 def boton(usuario: str) -> str:
     """El interruptor ES | EN, botón del desplegable. Es pequeño y no tiene
     versión de móvil, solo clara y oscura; sin width, para que se vea a su tamaño."""
-    url = lambda tema: SALIDA.format(usuario=usuario, nombre=f"idioma-{tema}")
+    url = lambda tema: SALIDA.format(usuario=usuario, nombre=f"interruptor-idioma-{tema}")
     return (
         "<picture>"
         f'<source media="(prefers-color-scheme: dark)" srcset="{url("dark")}">'
