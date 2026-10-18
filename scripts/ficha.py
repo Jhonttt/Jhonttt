@@ -7,7 +7,7 @@
 - 03 Con qué trabajo: el stack por grupos; lo que usé en la empresa, marcado.
 - La barra de contacto: tres segmentos que se colocan uno junto a otro bajo
   la cabecera y se leen como una sola pieza.
-- El selector de idioma: un interruptor ES | EN que lleva de un README al otro.
+- El botón «Read in English», que despliega el perfil en inglés en el README.
 
 Cada pieza sale en dos anchos: el de escritorio y el de móvil (ANCHO_MOVIL en
 comun.py), que lo pone todo en una sola columna; y en los dos idiomas
@@ -34,7 +34,6 @@ TEXTOS = {
         "en_curso": "hoy",
         "hoy": "hoy",
         "tipos": {"estudios": "estudios", "empresa": "empresa"},
-        "idioma": "Idioma: español. Cambiar a inglés",
     },
     "en": {
         "sobre_mi": "About me",
@@ -44,7 +43,6 @@ TEXTOS = {
         "en_curso": "present",
         "hoy": "today",
         "tipos": {"estudios": "education", "empresa": "work"},
-        "idioma": "Language: English. Switch to Spanish",
     },
 }
 
@@ -431,37 +429,28 @@ def contacto(tema: str, clave: str, rotulo: str, valor: str, posicion: int, anch
     return lz.render()
 
 
-# --- selector de idioma --------------------------------------------------------
+# --- botón del inglés ----------------------------------------------------------
 
-def selector(tema: str, actual: str, tx: dict) -> str:
-    """Interruptor ES | EN con `actual` encendido. Al cargar, la píldora llega
-    deslizándose desde el otro idioma: se lee como el cambio que acaba de pasar.
-
-    Es una sola imagen y un solo enlace (al otro README), así que da igual en
-    qué mitad se pulse. Mide lo mismo en escritorio y en móvil.
+def desplegable(tema: str, texto: str) -> str:
+    """El botón del desplegable con el perfil en inglés: una píldora con el
+    globo, el rótulo y una flecha que baja y sube despacio, para invitar a
+    pulsar. GitHub no deja cambiar la imagen al abrirlo (no hay CSS), así que
+    el botón es el mismo abierto y cerrado. Mide lo mismo en escritorio y en móvil.
     """
-    seg, x_seg, h = 38, 36, 34
-    w = x_seg + seg * len(IDIOMAS) + 4
-    lz = Lienzo(w, h, tema, tx["idioma"])
+    h = 34
+    x_texto = 14 + 14 + 10
+    x_flecha = x_texto + medir(texto, "pequeno-fuerte") + 12
+    w = round(x_flecha + 10 + 16)
+    lz = Lienzo(w, h, tema, texto)
     t = lz.t
     lz.raw(f'<rect x="0.5" y="0.5" width="{w - 1}" height="{h - 1}" rx="{f1(h / 2 - 0.5)}" fill="{t["panel"]}" stroke="{t["linea"]}"/>')
-    lz.raw(f'<g transform="translate(14 {f1(h / 2 - 7)}) scale(0.875)" fill="none" stroke="{t["suave"]}" stroke-width="1.5" '
+    lz.raw(f'<g transform="translate(14 {f1(h / 2 - 7)}) scale(0.875)" fill="none" stroke="{t["acento"]}" stroke-width="1.5" '
            f'stroke-linecap="round" stroke-linejoin="round">{ICONOS_CONTACTO["web"]}</g>')
-
-    i_actual = IDIOMAS.index(actual)
-    i_previo = 1 - i_actual
-    # El retraso va dentro de keyTimes, como en la actividad: sin animación se ve
-    # el estado final, nunca el de partida.
-    dur, kt, curva = "0.9s", "0;0.35;1", ' calcMode="spline" keySplines="0 0 1 1;0.3 0.7 0.2 1"'
-    x_fin, x_ini = x_seg + seg * i_actual, x_seg + seg * i_previo
-    lz.raw(f'<rect x="{x_fin}" y="4" width="{seg}" height="{h - 8}" rx="{f1((h - 8) / 2)}" fill="{t["acento"]}">'
-           f'<animate attributeName="x" values="{x_ini};{x_ini};{x_fin}" keyTimes="{kt}" dur="{dur}" fill="freeze"{curva}/></rect>')
-    for i, idioma in enumerate(IDIOMAS):
-        fin, ini = ("fondo", "suave") if i == i_actual else ("suave", "fondo")
-        anim = (f'<animate attributeName="fill" values="{t[ini]};{t[ini]};{t[fin]}" keyTimes="0;0.55;1" '
-                f'dur="{dur}" fill="freeze"/>')
-        texto = lz.texto(x_seg + seg * i + seg / 2, h / 2 + 4, idioma.upper(), "seccion", fin, anchor="middle")
-        lz.raw(texto.replace("</text>", f"{anim}</text>"))
+    lz.raw(lz.texto(x_texto, h / 2 + 4.5, texto, "pequeno-fuerte", "tinta"))
+    lz.raw(f'<path d="M{f1(x_flecha)} {h / 2 - 2.5}l5 5 5-5" fill="none" stroke="{t["suave"]}" stroke-width="1.5" '
+           f'stroke-linecap="round" stroke-linejoin="round">'
+           f'<animateTransform attributeName="transform" type="translate" values="0 0;0 2;0 0" dur="1.8s" '
+           f'repeatCount="indefinite" calcMode="spline" keySplines="0.4 0 0.6 1;0.4 0 0.6 1"/></path>')
     return lz.render()
 
 
@@ -471,7 +460,7 @@ def main() -> None:
         guardar_versiones("sobre-mi", lambda tema, ancho: sobre_mi(tema, perfil, tx, ancho), idioma)
         guardar_versiones("trayectoria", lambda tema, ancho: trayectoria(tema, perfil, tx, ancho), idioma)
         guardar_versiones("stack", lambda tema, ancho: stack(tema, perfil, tx, ancho), idioma)
-        guardar("idioma", {tema: selector(tema, idioma, tx) for tema in TEMAS}, idioma)
+    guardar("idioma", {tema: desplegable(tema, "Read in English") for tema in TEMAS})
     # El contacto es igual en los dos idiomas.
     perfil = datos()
     c = perfil["contacto"]
