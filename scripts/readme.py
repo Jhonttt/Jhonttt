@@ -5,7 +5,7 @@
   pensada para verse a su tamaño); por encima, la de escritorio.
 - Por tema: el oscuro si el sistema lo pide; el claro si no.
 
-Arriba va el botón «Read in English»: un <details> que, al pulsarlo, despliega
+Arriba va el interruptor ES | EN: un <details> que, al pulsarlo, despliega
 el perfil entero en inglés ahí mismo, sin salir del perfil. GitHub no deja
 JavaScript ni CSS en el README, así que no hay forma de ESCONDER el español al
 abrirlo: el inglés aparece encima y el español sigue debajo.
@@ -74,13 +74,13 @@ def picture(usuario: str, nombre: str, alt: str, ancho: str = "100%", idioma: st
 
 
 def boton(usuario: str) -> str:
-    """El botón del desplegable. Es pequeño y no tiene versión de móvil, solo
-    clara y oscura; sin width, para que se vea a su tamaño."""
+    """El interruptor ES | EN, botón del desplegable. Es pequeño y no tiene
+    versión de móvil, solo clara y oscura; sin width, para que se vea a su tamaño."""
     url = lambda tema: SALIDA.format(usuario=usuario, nombre=f"idioma-{tema}")
     return (
         "<picture>"
         f'<source media="(prefers-color-scheme: dark)" srcset="{url("dark")}">'
-        f'<img src="{url("light")}" alt="Read in English">'
+        f'<img src="{url("light")}" alt="Idioma: español. Read in English">'
         "</picture>"
     )
 
