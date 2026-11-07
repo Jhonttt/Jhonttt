@@ -58,6 +58,10 @@ jobs:
         working-directory: scripts
         run: python ficha.py
 
+      - name: Proyectos
+        working-directory: scripts
+        run: python proyectos.py
+
       - name: Actividad
         working-directory: scripts
         env:

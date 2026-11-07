@@ -81,5 +81,79 @@
     {
       "grupo": "workflow"
     }
+  ],
+  "proyectos": [
+    {
+      "tipo": "full stack",
+      "descripcion": "Psychology portal with a React app, a secure Express REST API and a WordPress landing page. Protected routes, roles, JWT and encryption of sensitive data.",
+      "tecnologias": [
+        "React",
+        "Express",
+        "Sequelize",
+        "JWT",
+        "MySQL",
+        "WordPress"
+      ]
+    },
+    {
+      "nombre": "Incident dashboard",
+      "tipo": "desktop",
+      "descripcion": "Desktop dashboard to manage incidents: reactive indicators, search, filters and issue creation. Programmatic version and refactor to FXML + Scene Builder.",
+      "tecnologias": [
+        "Java 25",
+        "JavaFX",
+        "Maven",
+        "CSS",
+        "Spotless",
+        "Checkstyle"
+      ]
+    },
+    {
+      "tipo": "frontend · API",
+      "descripcion": "Twitch interface clone with a live stream list and player, connected to the official API.",
+      "tecnologias": [
+        "Nuxt 4",
+        "Vue 3",
+        "Tailwind CSS",
+        "Pinia",
+        "Twitch API"
+      ]
+    },
+    {
+      "nombre": "Intermodular project",
+      "tipo": "full stack",
+      "descripcion": "Web portal to upload, list and manage student projects, with authentication, student and admin roles, and its own API.",
+      "tecnologias": [
+        "Angular 21",
+        "TypeScript",
+        "Laravel 12",
+        "PHP 8.2",
+        "Blade",
+        "MySQL"
+      ]
+    },
+    {
+      "nombre": "Personal portfolio",
+      "tipo": "frontend · deployment",
+      "descripcion": "My personal portfolio, with i18n, reusable components and deployment on Cloudflare Pages, Netlify, GitHub Pages and a VPS with Docker.",
+      "tecnologias": [
+        "Nuxt 4",
+        "TypeScript",
+        "Tailwind CSS",
+        "Pinia",
+        "Docker"
+      ]
+    },
+    {
+      "tipo": "frontend · accessibility",
+      "descripcion": "Responsive, accessible (AA) one-page landing, with Grid for the layout, Flexbox for navigation and cards, and a light/dark theme.",
+      "tecnologias": [
+        "HTML5",
+        "CSS Grid",
+        "Flexbox",
+        "Sass",
+        "Accessibility AA"
+      ]
+    }
   ]
 }

@@ -1,5 +1,5 @@
 {
-  "_comentario": "Fuente de todo el perfil. Cambia algo aquí y el workflow 'Perfil' vuelve a dibujarlo. Todo sale de LinkedIn; nada inventado.",
+  "_comentario": "Fuente de todo el perfil. Cambia algo aquí y el workflow 'Perfil' vuelve a dibujarlo. Todo sale de LinkedIn y de mis repositorios de GitHub; nada inventado.",
   "usuario": "Jhonttt",
   "nombre": "Juan Atahona",
   "saludo": "Hola, soy",
@@ -237,6 +237,98 @@
           "empresa": true
         }
       ]
+    }
+  ],
+  "proyectos": [
+    {
+      "nombre": "Serena",
+      "tipo": "full stack",
+      "periodo": "2026",
+      "descripcion": "Portal psicológico con app en React, API REST segura en Express y landing en WordPress. Rutas protegidas, roles, JWT y cifrado de datos sensibles.",
+      "tecnologias": [
+        "React",
+        "Express",
+        "Sequelize",
+        "JWT",
+        "MySQL",
+        "WordPress"
+      ],
+      "repo": "https://github.com/Jhonttt/serena-app",
+      "demo": "https://serena-app-rust.vercel.app"
+    },
+    {
+      "nombre": "Dashboard de incidencias",
+      "tipo": "escritorio",
+      "periodo": "2026",
+      "descripcion": "Dashboard de escritorio para gestionar incidencias: indicadores reactivos, búsqueda, filtros y alta. Versión programática y refactor a FXML + Scene Builder.",
+      "tecnologias": [
+        "Java 25",
+        "JavaFX",
+        "Maven",
+        "CSS",
+        "Spotless",
+        "Checkstyle"
+      ],
+      "repo": "https://github.com/Jhonttt/di-dashboard-gestion-incidencias-atahona-sergeev"
+    },
+    {
+      "nombre": "Twitch clone",
+      "tipo": "frontend · API",
+      "periodo": "2026",
+      "descripcion": "Clon de la interfaz de Twitch con listado de streams en vivo y reproductor, conectado a la API oficial.",
+      "tecnologias": [
+        "Nuxt 4",
+        "Vue 3",
+        "Tailwind CSS",
+        "Pinia",
+        "Twitch API"
+      ],
+      "repo": "https://github.com/Jhonttt/twitch-clone",
+      "demo": "https://twitch-clone-opal.vercel.app"
+    },
+    {
+      "nombre": "Proyecto intermodular",
+      "tipo": "full stack",
+      "periodo": "2026",
+      "descripcion": "Portal web para subir, listar y gestionar proyectos estudiantiles, con autenticación, roles de alumno y administrador, y API propia.",
+      "tecnologias": [
+        "Angular 21",
+        "TypeScript",
+        "Laravel 12",
+        "PHP 8.2",
+        "Blade",
+        "MySQL"
+      ],
+      "repo": "https://github.com/Jhonttt/proyecto-intermodular"
+    },
+    {
+      "nombre": "Portfolio personal",
+      "tipo": "frontend · despliegue",
+      "periodo": "2026",
+      "descripcion": "Mi portfolio personal, con i18n, componentes reutilizables y despliegue en Cloudflare Pages, Netlify, GitHub Pages y un VPS con Docker.",
+      "tecnologias": [
+        "Nuxt 4",
+        "TypeScript",
+        "Tailwind CSS",
+        "Pinia",
+        "Docker"
+      ],
+      "repo": "https://github.com/Jhonttt/personal-portfolio",
+      "demo": "https://juanatahona.dev"
+    },
+    {
+      "nombre": "LocalHub",
+      "tipo": "frontend · accesibilidad",
+      "periodo": "2025",
+      "descripcion": "Landing one-page responsive y accesible (AA), con Grid para el layout, Flexbox para navegación y tarjetas, y tema claro/oscuro.",
+      "tecnologias": [
+        "HTML5",
+        "CSS Grid",
+        "Flexbox",
+        "Sass",
+        "Accesibilidad AA"
+      ],
+      "repo": "https://github.com/Jhonttt/diw-u2-localhub-atahona-toro"
     }
   ],
   "contacto": {

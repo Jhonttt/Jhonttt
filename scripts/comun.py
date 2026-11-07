@@ -206,6 +206,13 @@ def sufijo(idioma: str) -> str:
     return "" if idioma == "es" else f"-{idioma}"
 
 
+def enlace_proyecto(proyecto: dict) -> tuple[str, str]:
+    """(url, tipo) del enlace principal de un proyecto: la demo si existe; si no, el repo."""
+    if proyecto.get("demo"):
+        return proyecto["demo"], "demo"
+    return proyecto["repo"], "repo"
+
+
 def esc(texto) -> str:
     return escape(str(texto), quote=True)
 

@@ -331,7 +331,7 @@ def construir(tema: str, idioma: str, ancho: float, publicas: list[tuple[dt.date
     if con_privadas:
         desc += tx["desc_privadas"].format(n=total_priv)
     lz = Lienzo(ancho, alto, tema, tx["titulo"], desc + ".")
-    tarjeta(lz, "04", tx["tarjeta"], rango(desde, hasta, idioma))
+    tarjeta(lz, "05", tx["tarjeta"], rango(desde, hasta, idioma))
     if con_privadas:
         _rayado(lz, tema)
 
