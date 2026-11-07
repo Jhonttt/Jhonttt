@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
-"""La tarjeta de proyectos, a partir de datos/perfil.json:
+"""La tarjeta de proyectos, en formato compacto, desde datos/perfil.json:
 
 - Una cabecera con el número de sección y cuántos proyectos se destacan.
-- Una fila por proyecto: nombre, tipo y año a la izquierda; descripción,
-  tecnologías y el enlace principal a la derecha. En móvil, todo en una
-  columna.
+- Una fila por proyecto, de una sola línea en escritorio: número, nombre, tipo,
+  tecnologías y el enlace principal. En móvil, el nombre arriba y el tipo con
+  las tecnologías debajo.
+
+La descripción larga no se dibuja para que la tarjeta ocupe poco; sigue en el
+texto alternativo de cada imagen, para lectores de pantalla y buscadores.
 
 La cabecera y las filas se dibujan como piezas separadas para que cada fila
 pueda ser un enlace distinto en el README: un SVG dentro de un <img> no puede
@@ -23,17 +26,19 @@ from comun import (
     Lienzo,
     datos,
     enlace_proyecto,
-    envolver,
     es_movil,
     f1,
     guardar_versiones,
     medir,
 )
 
-X = 28
-ANCHO_IZQ = 196          # columna del nombre, en escritorio
-X_DER = 252              # dónde empieza la descripción, en escritorio
-X_SEP = X_DER - 20       # la línea vertical que separa las dos columnas
+X = 28                    # margen lateral
+ALTO_CABECERA = 56
+ALTO_FILA = 44            # una línea, en escritorio
+ALTO_FILA_MOVIL = 58      # dos líneas, en móvil
+X_NOMBRE = 58
+X_TIPO = 306              # columna del tipo, en escritorio
+X_TEC = 520               # columna de las tecnologías, en escritorio
 
 TEXTOS = {
     "es": {
@@ -77,36 +82,28 @@ def _borde_fila(ancho: float, alto: float, ultima: bool) -> str:
     return f"M0.5 0V{f1(alto - 0.5)}M{f1(ancho - 0.5)} 0V{f1(alto - 0.5)}"
 
 
-def _ancho_chip(nombre: str) -> float:
-    return medir(nombre, "mono-pequeno") + 14
+def _recortar(texto: str, estilo: str, ancho_max: float) -> str:
+    """El texto, con puntos suspensivos si no cabe en `ancho_max`."""
+    if medir(texto, estilo) <= ancho_max:
+        return texto
+    recorte = texto
+    while recorte and medir(recorte + "…", estilo) > ancho_max:
+        recorte = recorte[:-1]
+    return recorte.rstrip(" ·,") + "…"
 
 
-def _reparto_chips(tecnologias: list[str], ancho_max: float) -> list[list[str]]:
-    filas: list[list[str]] = [[]]
-    x = 0.0
-    for nombre in tecnologias:
-        w = _ancho_chip(nombre)
-        if filas[-1] and x + w > ancho_max:
-            filas.append([])
-            x = 0.0
-        filas[-1].append(nombre)
-        x += w + 6
-    return filas
-
-
-def _chips(lz: Lienzo, x0: float, y: float, filas: list[list[str]]) -> None:
-    t = lz.t
-    for fila in filas:
-        x = x0
-        for nombre in fila:
-            w = _ancho_chip(nombre)
-            lz.raw(
-                f'<rect x="{f1(x)}" y="{f1(y)}" width="{f1(w)}" height="20" rx="5" '
-                f'fill="{t["panel"]}" stroke="{t["linea"]}"/>'
-            )
-            lz.raw(lz.texto(x + 7, y + 14, nombre, "mono-pequeno", "suave"))
-            x += w + 6
-        y += 26
+def _tecnologias(items: list[str], ancho_max: float) -> str:
+    """Las tecnologías que caben en `ancho_max`, con un +N si quedan fuera."""
+    texto, usados = "", 0
+    for i, item in enumerate(items):
+        prueba = f"{texto} · {item}" if texto else item
+        resto = len(items) - i - 1
+        sufijo = f" +{resto}" if resto else ""
+        if medir(prueba + sufijo, "mono-pequeno") > ancho_max:
+            break
+        texto, usados = prueba, i + 1
+    resto = len(items) - usados
+    return texto + (f" +{resto}" if resto else "")
 
 
 def _enlace(lz: Lienzo, x: float, y: float, tipo: str, tx: dict) -> None:
@@ -125,13 +122,13 @@ def _enlace(lz: Lienzo, x: float, y: float, tipo: str, tx: dict) -> None:
 def cabecera(tema: str, perfil: dict, tx: dict, ancho: float) -> str:
     n = len(perfil["proyectos"])
     desc = f"{tx['titulo']}: " + ", ".join(p["nombre"] for p in perfil["proyectos"]) + "."
-    lz = Lienzo(ancho, 56, tema, tx["titulo"], desc)
+    lz = Lienzo(ancho, ALTO_CABECERA, tema, tx["titulo"], desc)
     t = lz.t
-    lz.raw(f'<rect width="{f1(ancho)}" height="56" fill="{t["fondo"]}"/>')
-    lz.raw(f'<path d="{_borde_cabecera(ancho, 56)}" fill="none" stroke="{t["linea"]}"/>')
+    lz.raw(f'<rect width="{f1(ancho)}" height="{ALTO_CABECERA}" fill="{t["fondo"]}"/>')
+    lz.raw(f'<path d="{_borde_cabecera(ancho, ALTO_CABECERA)}" fill="none" stroke="{t["linea"]}"/>')
     lz.raw(
-        f'<line x1="0.5" y1="55.5" x2="{f1(ancho - 0.5)}" y2="55.5" '
-        f'stroke="{t["linea"]}" stroke-dasharray="2 4"/>'
+        f'<line x1="0.5" y1="{f1(ALTO_CABECERA - 0.5)}" x2="{f1(ancho - 0.5)}" '
+        f'y2="{f1(ALTO_CABECERA - 0.5)}" stroke="{t["linea"]}" stroke-dasharray="2 4"/>'
     )
     lz.raw(lz.texto(X, 38, "04", "seccion", "acento"))
     lz.raw(lz.texto(X + medir("04", "seccion") + 12, 38, tx["titulo"], "seccion", "suave", mayus=True))
@@ -143,33 +140,11 @@ def fila(tema: str, tx: dict, proyecto: dict, indice: int, ancho: float, ultima:
     movil = es_movil(ancho)
     url, tipo = enlace_proyecto(proyecto)
     etiqueta = tx["demo"] if tipo == "demo" else tx["codigo"]
-
-    if movil:
-        x_texto = X
-        ancho_texto = ancho - 2 * X
-        y_indice, y_titulo = 22, 44
-        titulo_lineas = envolver(proyecto["nombre"], "dato", ancho_texto)
-        y_meta = y_titulo + (len(titulo_lineas) - 1) * 19 + 20
-        y_desc = y_meta + 22
-        desc_lineas = envolver(proyecto["descripcion"], "pequeno", ancho_texto)
-        y_chips = y_desc + (len(desc_lineas) - 1) * 18 + 14
-        filas_chips = _reparto_chips(proyecto["tecnologias"], ancho_texto)
-        alto = y_chips + (len(filas_chips) - 1) * 26 + 20 + 18
-    else:
-        x_texto = X_DER
-        ancho_texto = ancho - X - X_DER
-        y_indice, y_titulo = 22, 44
-        titulo_lineas = envolver(proyecto["nombre"], "dato", ANCHO_IZQ)
-        y_meta = y_titulo + (len(titulo_lineas) - 1) * 19 + 20
-        y_desc = 44
-        desc_lineas = envolver(proyecto["descripcion"], "pequeno", ancho_texto)
-        y_chips = y_desc + (len(desc_lineas) - 1) * 18 + 14
-        filas_chips = _reparto_chips(proyecto["tecnologias"], ancho_texto)
-        alto = max(y_chips + (len(filas_chips) - 1) * 26 + 20, y_meta + 4) + 18
+    alto = ALTO_FILA_MOVIL if movil else ALTO_FILA
 
     titulo = f"{proyecto['nombre']} — {etiqueta}"
     desc = (
-        f"{proyecto['nombre']}. {proyecto['tipo']}. {proyecto['descripcion']} "
+        f"{proyecto['nombre']}. {proyecto['tipo']} · {proyecto['periodo']}. {proyecto['descripcion']} "
         f"{', '.join(proyecto['tecnologias'])}. {etiqueta}: {url}"
     )
     lz = Lienzo(ancho, alto, tema, titulo, desc)
@@ -182,23 +157,35 @@ def fila(tema: str, tx: dict, proyecto: dict, indice: int, ancho: float, ultima:
             f'<line x1="0.5" y1="{f1(alto - 0.5)}" x2="{f1(ancho - 0.5)}" y2="{f1(alto - 0.5)}" '
             f'stroke="{t["linea"]}" stroke-dasharray="2 4"/>'
         )
-    if not movil:
-        lz.raw(
-            f'<line x1="{f1(X_SEP)}" y1="18" x2="{f1(X_SEP)}" y2="{f1(alto - 18)}" '
-            f'stroke="{t["linea"]}"/>'
-        )
 
-    lz.raw(lz.texto(X, y_indice, f"{indice:02d}", "mono-pequeno", "acento"))
     ancho_etiqueta = 18 + medir(etiqueta, "mono-pequeno")
-    _enlace(lz, ancho - X - ancho_etiqueta, y_indice, tipo, tx)
+    y_enlace = 24 if movil else 27
 
-    for i, linea in enumerate(titulo_lineas):
-        lz.raw(lz.texto(X, y_titulo + i * 19, linea, "dato", "tinta"))
-    lz.raw(lz.texto(X, y_meta, f"{proyecto['tipo']} · {proyecto['periodo']}", "mono-pequeno", "suave", mayus=True))
+    if movil:
+        y1, y2 = 24, 44
+        hueco_nombre = ancho - X_NOMBRE - X - ancho_etiqueta - 12
+        nombre = _recortar(proyecto["nombre"], "dato", hueco_nombre)
+        lz.raw(lz.texto(X, y1, f"{indice:02d}", "mono-pequeno", "acento"))
+        lz.raw(lz.texto(X_NOMBRE, y1, nombre, "dato", "tinta"))
+        _enlace(lz, ancho - X - ancho_etiqueta, y_enlace, tipo, tx)
 
-    for i, linea in enumerate(desc_lineas):
-        lz.raw(lz.texto(x_texto, y_desc + i * 18, linea, "pequeno", "tinta"))
-    _chips(lz, x_texto, y_chips, filas_chips)
+        meta_tipo = f"{proyecto['tipo']} · "
+        meta = meta_tipo + _tecnologias(proyecto["tecnologias"], ancho - X_NOMBRE - X - medir(meta_tipo, "mono-pequeno"))
+        lz.raw(lz.texto(X_NOMBRE, y2, meta, "mono-pequeno", "suave"))
+    else:
+        y = 27
+        hueco_nombre = X_TIPO - X_NOMBRE - 12
+        nombre = _recortar(proyecto["nombre"], "dato", hueco_nombre)
+        lz.raw(lz.texto(X, y, f"{indice:02d}", "mono-pequeno", "acento"))
+        lz.raw(lz.texto(X_NOMBRE, y, nombre, "dato", "tinta"))
+        tipo_texto = _recortar(proyecto["tipo"].upper(), "mono-pequeno", X_TEC - X_TIPO - 16)
+        lz.raw(lz.texto(X_TIPO, y, tipo_texto, "mono-pequeno", "suave"))
+
+        hueco_tec = ancho - X - ancho_etiqueta - 16 - X_TEC
+        tecnologias = _tecnologias(proyecto["tecnologias"], hueco_tec)
+        lz.raw(lz.texto(X_TEC, y, tecnologias, "mono-pequeno", "suave"))
+        _enlace(lz, ancho - X - ancho_etiqueta, y_enlace, tipo, tx)
+
     return lz.render()
 
 
