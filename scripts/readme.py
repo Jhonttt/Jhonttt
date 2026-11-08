@@ -127,7 +127,8 @@ def escribir(idioma: str) -> None:
         )
 
     proyectos = "".join(
-        [pic("proyectos", tx["proyectos"].format(", ".join(x["nombre"] for x in p["proyectos"])))]
+        [picture(u, "proyectos", tx["proyectos"].format(", ".join(x["nombre"] for x in p["proyectos"])),
+                  "100%", idioma, "top")]
         + [
             f'<a href="{enlace_proyecto(x)[0]}">{picture(u, f"proyecto-{i + 1}", alt_proyecto(x), "100%", idioma, "top")}</a>'
             for i, x in enumerate(p["proyectos"])
