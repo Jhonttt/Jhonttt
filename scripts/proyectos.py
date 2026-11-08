@@ -2,16 +2,15 @@
 """La tarjeta de proyectos, reducida a un índice:
 
 - Una cabecera con el número de sección y cuántos proyectos se destacan.
-- Una fila por proyecto: número, nombre y el enlace principal. Sin tipos, sin
-  tecnologías y sin líneas discontinuas entre filas.
+- Una fila por proyecto: número, nombre y el enlace principal. Sin bordes, sin
+  tipos, sin tecnologías y sin líneas entre filas.
 
 El tipo, el año, la descripción y las tecnologías siguen en el texto alternativo
 de cada imagen, para lectores de pantalla y buscadores.
 
 La cabecera y las filas se dibujan como piezas separadas para que cada fila
 pueda ser un enlace distinto en el README: un SVG dentro de un <img> no puede
-tener enlaces propios. Al compartir el mismo borde y el mismo fondo, se leen
-como una sola tarjeta.
+tener enlaces propios. Sin fondo ni borde, las uniones entre imágenes no se ven.
 
 El enlace principal es la demo si el proyecto tiene una; si no, el repositorio.
 
@@ -33,8 +32,8 @@ from comun import (
 
 X = 28                    # margen lateral
 ALTO_CABECERA = 56
-ALTO_FILA = 34            # una línea, en escritorio
-ALTO_FILA_MOVIL = 36
+ALTO_FILA = 48            # una línea, en escritorio
+ALTO_FILA_MOVIL = 52
 X_NOMBRE = 58
 
 TEXTOS = {
@@ -57,26 +56,6 @@ ICONOS = {
     "demo": '<circle cx="8" cy="8" r="6.5"/><path d="M1.5 8h13M8 1.5c1.9 1.9 2.8 4.1 2.8 6.5S9.9 12.6 8 14.5M8 1.5C6.1 3.4 5.2 5.6 5.2 8s.9 4.6 2.8 6.5"/>',
     "codigo": '<path d="m5.5 4.5-3.5 3.5 3.5 3.5M10.5 4.5l3.5 3.5-3.5 3.5"/>',
 }
-
-
-def _borde_cabecera(ancho: float, alto: float) -> str:
-    """Borde superior de la tarjeta: esquinas de arriba redondeadas y el resto
-    abierto, porque las filas continúan debajo."""
-    return (
-        f"M0.5 {f1(alto - 0.5)}V12.5A12 12 0 0 1 12.5 0.5"
-        f"H{f1(ancho - 12.5)}A12 12 0 0 1 {f1(ancho - 0.5)} 12.5V{f1(alto - 0.5)}"
-    )
-
-
-def _borde_fila(ancho: float, alto: float, ultima: bool) -> str:
-    """Borde de una fila: solo los lados; la última redondea las esquinas de
-    abajo. Sin líneas entre filas."""
-    if ultima:
-        return (
-            f"M0.5 0V{f1(alto - 12.5)}A12 12 0 0 0 12.5 {f1(alto - 0.5)}"
-            f"H{f1(ancho - 12.5)}A12 12 0 0 0 {f1(ancho - 0.5)} {f1(alto - 12.5)}V0"
-        )
-    return f"M0.5 0V{f1(alto - 0.5)}M{f1(ancho - 0.5)} 0V{f1(alto - 0.5)}"
 
 
 def _recortar(texto: str, estilo: str, ancho_max: float) -> str:
@@ -106,20 +85,13 @@ def cabecera(tema: str, perfil: dict, tx: dict, ancho: float) -> str:
     n = len(perfil["proyectos"])
     desc = f"{tx['titulo']}: " + ", ".join(p["nombre"] for p in perfil["proyectos"]) + "."
     lz = Lienzo(ancho, ALTO_CABECERA, tema, tx["titulo"], desc)
-    t = lz.t
-    lz.raw(f'<rect width="{f1(ancho)}" height="{ALTO_CABECERA}" fill="{t["fondo"]}"/>')
-    lz.raw(f'<path d="{_borde_cabecera(ancho, ALTO_CABECERA)}" fill="none" stroke="{t["linea"]}"/>')
-    lz.raw(
-        f'<line x1="0.5" y1="{f1(ALTO_CABECERA - 0.5)}" x2="{f1(ancho - 0.5)}" '
-        f'y2="{f1(ALTO_CABECERA - 0.5)}" stroke="{t["linea"]}"/>'
-    )
     lz.raw(lz.texto(X, 38, "04", "seccion", "acento"))
     lz.raw(lz.texto(X + medir("04", "seccion") + 12, 38, tx["titulo"], "seccion", "suave", mayus=True))
     lz.raw(lz.texto(ancho - X, 38, tx["meta"].format(n=n), "meta", "suave", anchor="end"))
     return lz.render()
 
 
-def fila(tema: str, tx: dict, proyecto: dict, indice: int, ancho: float, ultima: bool) -> str:
+def fila(tema: str, tx: dict, proyecto: dict, indice: int, ancho: float) -> str:
     movil = es_movil(ancho)
     url, tipo = enlace_proyecto(proyecto)
     etiqueta = tx["demo"] if tipo == "demo" else tx["codigo"]
@@ -131,13 +103,9 @@ def fila(tema: str, tx: dict, proyecto: dict, indice: int, ancho: float, ultima:
         f"{', '.join(proyecto['tecnologias'])}. {etiqueta}: {url}"
     )
     lz = Lienzo(ancho, alto, tema, titulo, desc)
-    t = lz.t
-
-    lz.raw(f'<rect width="{f1(ancho)}" height="{f1(alto)}" fill="{t["fondo"]}"/>')
-    lz.raw(f'<path d="{_borde_fila(ancho, alto, ultima)}" fill="none" stroke="{t["linea"]}"/>')
 
     ancho_etiqueta = 18 + medir(etiqueta, "mono-pequeno")
-    y = 22 if not movil else 23
+    y = 29 if not movil else 31
 
     hueco_nombre = ancho - X_NOMBRE - X - ancho_etiqueta - 12
     nombre = _recortar(proyecto["nombre"], "dato", hueco_nombre)
@@ -157,7 +125,7 @@ def main() -> None:
         for i, proyecto in enumerate(proyectos):
             guardar_versiones(
                 f"proyecto-{i + 1}",
-                lambda tema, ancho, p=proyecto, i=i: fila(tema, tx, p, i + 1, ancho, i == len(proyectos) - 1),
+                lambda tema, ancho, p=proyecto, i=i: fila(tema, tx, p, i + 1, ancho),
                 idioma,
             )
         print(f"proyectos ({idioma}): {len(proyectos)}")
