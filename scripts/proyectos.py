@@ -2,15 +2,17 @@
 """La tarjeta de proyectos, reducida a un índice:
 
 - Una cabecera con el número de sección y cuántos proyectos se destacan.
-- Una fila por proyecto: número, nombre y el enlace principal. Sin bordes, sin
-  tipos, sin tecnologías y sin líneas entre filas.
+- Una fila por proyecto: número, nombre y el enlace principal. Sin tipos, sin
+  tecnologías y sin líneas entre filas.
 
 El tipo, el año, la descripción y las tecnologías siguen en el texto alternativo
 de cada imagen, para lectores de pantalla y buscadores.
 
 La cabecera y las filas se dibujan como piezas separadas para que cada fila
 pueda ser un enlace distinto en el README: un SVG dentro de un <img> no puede
-tener enlaces propios. Sin fondo ni borde, las uniones entre imágenes no se ven.
+tener enlaces propios. En el README las imágenes llevan align="top" para que
+queden pegadas: así el borde de una fila continúa en la siguiente y se ve una
+sola tarjeta.
 
 El enlace principal es la demo si el proyecto tiene una; si no, el repositorio.
 
@@ -58,6 +60,27 @@ ICONOS = {
 }
 
 
+def _borde_cabecera(ancho: float, alto: float) -> str:
+    """Borde de la cabecera: esquinas de arriba redondeadas y el resto abierto,
+    porque las filas continúan debajo."""
+    return (
+        f"M0.5 {f1(alto)}V12.5A12 12 0 0 1 12.5 0.5"
+        f"H{f1(ancho - 12.5)}A12 12 0 0 1 {f1(ancho - 0.5)} 12.5V{f1(alto)}"
+    )
+
+
+def _borde_fila(ancho: float, alto: float, ultima: bool) -> str:
+    """Borde de una fila: solo los lados; la última redondea las esquinas de
+    abajo. Las imágenes van pegadas (align="top"), así que las líneas siguen
+    de una fila a la siguiente."""
+    if ultima:
+        return (
+            f"M0.5 0V{f1(alto - 12.5)}A12 12 0 0 0 12.5 {f1(alto - 0.5)}"
+            f"H{f1(ancho - 12.5)}A12 12 0 0 0 {f1(ancho - 0.5)} {f1(alto - 12.5)}V0"
+        )
+    return f"M0.5 0V{f1(alto)}M{f1(ancho - 0.5)} 0V{f1(alto)}"
+
+
 def _recortar(texto: str, estilo: str, ancho_max: float) -> str:
     """El texto, con puntos suspensivos si no cabe en `ancho_max`."""
     if medir(texto, estilo) <= ancho_max:
@@ -85,13 +108,20 @@ def cabecera(tema: str, perfil: dict, tx: dict, ancho: float) -> str:
     n = len(perfil["proyectos"])
     desc = f"{tx['titulo']}: " + ", ".join(p["nombre"] for p in perfil["proyectos"]) + "."
     lz = Lienzo(ancho, ALTO_CABECERA, tema, tx["titulo"], desc)
+    t = lz.t
+    lz.raw(f'<rect width="{f1(ancho)}" height="{ALTO_CABECERA}" fill="{t["fondo"]}"/>')
+    lz.raw(f'<path d="{_borde_cabecera(ancho, ALTO_CABECERA)}" fill="none" stroke="{t["linea"]}"/>')
+    lz.raw(
+        f'<line x1="{X}" y1="{f1(ALTO_CABECERA - 0.5)}" x2="{f1(ancho - X)}" '
+        f'y2="{f1(ALTO_CABECERA - 0.5)}" stroke="{t["linea"]}"/>'
+    )
     lz.raw(lz.texto(X, 38, "04", "seccion", "acento"))
     lz.raw(lz.texto(X + medir("04", "seccion") + 12, 38, tx["titulo"], "seccion", "suave", mayus=True))
     lz.raw(lz.texto(ancho - X, 38, tx["meta"].format(n=n), "meta", "suave", anchor="end"))
     return lz.render()
 
 
-def fila(tema: str, tx: dict, proyecto: dict, indice: int, ancho: float) -> str:
+def fila(tema: str, tx: dict, proyecto: dict, indice: int, ancho: float, ultima: bool) -> str:
     movil = es_movil(ancho)
     url, tipo = enlace_proyecto(proyecto)
     etiqueta = tx["demo"] if tipo == "demo" else tx["codigo"]
@@ -103,6 +133,10 @@ def fila(tema: str, tx: dict, proyecto: dict, indice: int, ancho: float) -> str:
         f"{', '.join(proyecto['tecnologias'])}. {etiqueta}: {url}"
     )
     lz = Lienzo(ancho, alto, tema, titulo, desc)
+    t = lz.t
+
+    lz.raw(f'<rect width="{f1(ancho)}" height="{f1(alto)}" fill="{t["fondo"]}"/>')
+    lz.raw(f'<path d="{_borde_fila(ancho, alto, ultima)}" fill="none" stroke="{t["linea"]}"/>')
 
     ancho_etiqueta = 18 + medir(etiqueta, "mono-pequeno")
     y = 29 if not movil else 31
@@ -125,7 +159,7 @@ def main() -> None:
         for i, proyecto in enumerate(proyectos):
             guardar_versiones(
                 f"proyecto-{i + 1}",
-                lambda tema, ancho, p=proyecto, i=i: fila(tema, tx, p, i + 1, ancho),
+                lambda tema, ancho, p=proyecto, i=i: fila(tema, tx, p, i + 1, ancho, i == len(proyectos) - 1),
                 idioma,
             )
         print(f"proyectos ({idioma}): {len(proyectos)}")

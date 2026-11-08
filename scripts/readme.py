@@ -76,15 +76,17 @@ TEXTOS = {
 }
 
 
-def picture(usuario: str, nombre: str, alt: str, ancho: str = "100%", idioma: str = "es") -> str:
+def picture(usuario: str, nombre: str, alt: str, ancho: str = "100%", idioma: str = "es",
+            align: str = "") -> str:
     url = lambda variante: SALIDA.format(usuario=usuario, nombre=f"{nombre}{variante}")
     s = sufijo(idioma)
+    atributo = f' align="{align}"' if align else ""
     return (
         "<picture>"
         f'<source media="(max-width: {MOVIL_MAX}px) and (prefers-color-scheme: dark)" srcset="{url(f"-movil{s}-dark")}">'
         f'<source media="(max-width: {MOVIL_MAX}px)" srcset="{url(f"-movil{s}-light")}">'
         f'<source media="(prefers-color-scheme: dark)" srcset="{url(f"{s}-dark")}">'
-        f'<img src="{url(f"{s}-light")}" width="{ancho}" alt="{escape(alt, quote=True)}">'
+        f'<img src="{url(f"{s}-light")}" width="{ancho}"{atributo} alt="{escape(alt, quote=True)}">'
         "</picture>"
     )
 
@@ -127,7 +129,7 @@ def escribir(idioma: str) -> None:
     proyectos = "".join(
         [pic("proyectos", tx["proyectos"].format(", ".join(x["nombre"] for x in p["proyectos"])))]
         + [
-            f'<a href="{enlace_proyecto(x)[0]}">{picture(u, f"proyecto-{i + 1}", alt_proyecto(x), "100%", idioma)}</a>'
+            f'<a href="{enlace_proyecto(x)[0]}">{picture(u, f"proyecto-{i + 1}", alt_proyecto(x), "100%", idioma, "top")}</a>'
             for i, x in enumerate(p["proyectos"])
         ]
     )
